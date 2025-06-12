@@ -2,18 +2,21 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const connectMongo = require('./BDD/mongo');
+const mysql = require('./BDD/mysql');
 
-// Middleware
+const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes de test
-app.get('/', (req, res) => {
-    res.send('API Pangeas opérationnelle');
-});
+// Démarrage du serveur qu’après connexion Mongo réussie.
+connectMongo()
+    .then(() => {
+        app.listen(3000, () => {
+            console.log('🚀 Serveur lancé sur http://localhost:3000');
+        });
+    })
+    .catch((err) => {
+        console.error('Erreur de connexion Mongo, arrêt du serveur', err);
+    });
 
-app.listen(PORT, () => {
-    console.log(`Serveur en écoute sur http://localhost:${PORT}`);
-});
