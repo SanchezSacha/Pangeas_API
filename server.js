@@ -7,16 +7,17 @@ const mysql = require('./BDD/mysql');
 
 const app = express();
 const placesRoutes = require('./routes/placesRoute');
+const authRoute = require('./routes/authRoute');
 
 app.use(cors());
 app.use(express.json());
 app.use('/accueil', placesRoutes);
+app.use('/api/inscription', authRoute);
 
 app.get('/', (req, res) => {
-    res.send('Bienvenue sur l’API Pangeas 🧭');
+    res.send('Bienvenue sur l’API Pangeas');
 });
 
-// Démarrage du serveur qu’après connexion Mongo réussie.
 connectMongo()
     .then(() => {
         app.listen(3000, () => {
