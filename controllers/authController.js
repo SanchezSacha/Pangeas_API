@@ -1,7 +1,8 @@
 const bcrypt = require('bcrypt');
-const { createUser } = require('../models/userModel');
+const { createUser, getUserByEmail} = require('../models/userModel');
 const path = require('path');
 
+/////////////INSCRIPTION
 const registerUser = async (req, res) => {
     try {
         const { pseudo, email, password, bio, cgu_accepted } = req.body;
@@ -47,4 +48,48 @@ const registerUser = async (req, res) => {
     }
 };
 
-module.exports = { registerUser };
+////////// CONNEXION
+
+const loginUser = (req, res) => {
+    const { email, password } = req.body;
+
+    getUserByEmail(email, async (err, user) => {
+        if (err) {
+            console.error('❌ Erreur lors de la recherche utilisateur :', err);
+            return res.status(500).json({
+                success: false,
+                message: 'Erreur serveur.'
+            });
+        }
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                errors: [{ field: 'email', message: 'Aucun compte trouvé avec cet email.' }]
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                errors: [{ field: 'password', message: 'Mot de passe incorrect.' }]
+            });
+        }
+
+        req.session.user = {
+            id: user.id,
+            pseudo: user.pseudo,
+            avatar_url: user.avatar_url,
+            role: user.role
+        };
+
+        return res.status(200).json({
+            success: true,
+            message: 'Connexion réussie.',
+            user: req.session.user
+        });
+    });
+};
+
+module.exports = { registerUser, loginUser };
