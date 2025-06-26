@@ -10,16 +10,16 @@ const validateUser = [
 
     check('email')
         .trim()
-        .notEmpty().withMessage('L’email est requis')
+        .notEmpty().withMessage('L’email est requis').bail()
         .isEmail().withMessage('L’email doit être valide')
         .customSanitizer(value => sanitizeHtml(value)),
 
     check('password')
-        .notEmpty().withMessage('Le mot de passe est requis')
+        .notEmpty().withMessage('Le mot de passe est requis').bail()
         .isLength({ min: 12 }).withMessage('12 caractères min'),
 
     check('confirmPassword')
-        .notEmpty().withMessage('La confirmation du mot de passe est requise')
+        .notEmpty().withMessage('La confirmation du mot de passe est requise').bail()
         .custom((value, { req }) => {
             if (value !== req.body.password) {
                 throw new Error('Les mots de passe ne correspondent pas');
