@@ -6,7 +6,7 @@ const validateLogin = require('../middleware/validateLogin');
 const handleMulterError = require('../middleware/validateMulter');
 const uploadAvatar = require('../middleware/uploadAvatar');
 
-const { registerUser, loginUser } = require('../controllers/authController');
+const { registerUser, loginUser, getCurrentUser  } = require('../controllers/authController');
 
 // Inscription
 router.post('/inscription', (req, res, next) =>
@@ -18,5 +18,8 @@ router.post('/inscription', (req, res, next) =>
 
 // Connexion
 router.post('/connexion', validateLogin, loginUser);
+
+// Sauvegarde Session
+router.get('/me', getCurrentUser);
 
 module.exports = router;
