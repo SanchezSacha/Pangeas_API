@@ -18,4 +18,16 @@ const placeSchema = new mongoose.Schema({
     created_at: Date
 });
 
-module.exports = mongoose.model('Place', placeSchema);
+const Place = mongoose.model('Place', placeSchema);
+
+// Fonction pour retrouver un lieu par son ID MongoDB
+const getPlaceById = async (id) => {
+    try {
+        return await Place.findById(id).lean();
+    } catch (err) {
+        console.error("Erreur lors de la récupération du lieu:", err);
+        return null;
+    }
+};
+
+module.exports = {Place, getPlaceById};
