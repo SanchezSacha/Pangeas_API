@@ -97,9 +97,7 @@ const loginUser = (req, res) => {
 /////////////////////////////////////Sauvegarde la session si pas de déconnexion ://////////////////////////////////////////////////
 
 const getCurrentUser = (req, res) => {
-    console.log(req.session)
     if (req.session && req.session.user) {
-        console.log('Session user:', req.session.user);
         return res.status(200).json({
             success: true,
             user: req.session.user

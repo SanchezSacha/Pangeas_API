@@ -3,8 +3,12 @@ const { getPlaceById } = require('../models/placesModel');
 const haversine = require('haversine-distance');
 
 const validateVisit = async (req, res) => {
-    const { user_id, place_id, user_lat, user_lng } = req.body;
+    const user_id = req.session?.user?.id;
+    const { place_id, user_lat, user_lng } = req.body;
 
+    if (!user_id) {
+        return res.status(401).json({ success: false, message: "Non authentifié" });
+    }
     try {
         const place = await getPlaceById(place_id);
         if (!place || !place.coordinates) {
