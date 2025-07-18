@@ -22,4 +22,16 @@ router.post('/connexion', validateLogin, loginUser);
 // Sauvegarde Session
 router.get('/me', getCurrentUser);
 
+// Déconnexion
+router.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            console.error('Erreur lors de la suppression de la session:', err);
+            return res.status(500).json({ success: false, message: 'Erreur lors de la déconnexion.' });
+        }
+        res.clearCookie('connect.sid', { path: '/' });
+        return res.status(200).json({ success: true, message: 'Déconnecté avec succès.' });
+    });
+});
+
 module.exports = router;
