@@ -7,11 +7,6 @@ const mysql = require('./BDD/mysql');
 const corsMiddleware = require('./middleware/Cors/cors');
 
 const app = express();
-const cors = require('cors');
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 // Session
 app.use(session({
@@ -25,6 +20,10 @@ app.use(session({
         sameSite: 'lax',
     }
 }));
+
+// Middleware
+app.use(corsMiddleware);
+app.use(express.json());
 
 // Routes
 const placesRoutes = require('./routes/placesRoute');

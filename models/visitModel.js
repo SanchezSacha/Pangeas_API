@@ -67,4 +67,18 @@ const startVisit = (userId, placeId) => {
     });
 };
 
-module.exports = {getOngoingVisitByUserId, getOngoingVisitByPlaceAndUser, startVisit, markVisitAsValidated};
+// Annule une visite en cours pour un utilisateur
+const deleteVisitByUserId = (userId) => {
+    return new Promise((resolve, reject) => {
+        const query = `
+            DELETE FROM user_visits
+            WHERE user_id = ? AND status = 'ongoing'
+        `;
+        db.query(query, [userId], (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+};
+
+module.exports = {getOngoingVisitByUserId, getOngoingVisitByPlaceAndUser, startVisit, markVisitAsValidated, deleteVisitByUserId};
