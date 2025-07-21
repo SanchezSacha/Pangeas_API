@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
-const { createUser, getUserByEmail} = require('../models/userModel');
+const { createUser, getUserByEmail, getUserById, updateUserById} = require('../models/userModel');
 const path = require('path');
+const {unlink} = require("fs");
 
 //////////////////////////////////////////////////////////INSCRIPTION//////////////////////////////////////////////////////////////
 const registerUser = async (req, res) => {
@@ -28,7 +29,7 @@ const registerUser = async (req, res) => {
 
         createUser(userData, (err, result) => {
             if (err) {
-                console.error('❌ Erreur lors de l’enregistrement :', err);
+                console.error('Erreur lors de l’enregistrement :', err);
                 return res.status(500).json({
                     success: false,
                     message: 'Erreur lors de l’inscription. Veuillez réessayer plus tard.'
@@ -47,6 +48,65 @@ const registerUser = async (req, res) => {
     }
 };
 
+////////////////////////////////// Update user ////////////////////////////////////////////////////////
+const updateUser = (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).json({ success: false, message: 'Non autorisé.' });
+    }
+
+    if ('email' in req.body || 'password' in req.body || 'role' in req.body) {
+        return res.status(403).json({ success: false, message: 'Modification non autorisée.' });
+    }
+
+    const userId = req.session.user.id;
+    const { pseudo, bio } = req.body;
+    let avatar_url;
+
+    if (req.file) {
+        avatar_url = `/uploads/avatar/${req.file.filename}`;
+    }
+
+    getUserById(userId, (err, userBeforeUpdate) => {
+        if (err || !userBeforeUpdate) {
+            return res.status(500).json({ success: false, message: 'Utilisateur introuvable.' });
+        }
+
+        updateUserById(userId, { pseudo, bio, avatar_url }, (err, result) => {
+            if (err) {
+                console.error('Erreur lors de la mise à jour utilisateur :', err);
+                return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+            }
+
+            if (req.file && userBeforeUpdate.avatar_url && userBeforeUpdate.avatar_url !== '/img-avatar.jpg') {
+                const oldAvatarPath = path.join(__dirname, '..', userBeforeUpdate.avatar_url.replace(/^\/+/, ''));
+                unlink(oldAvatarPath, (err) => {
+                    if (err) {
+                        console.error("Erreur suppression ancien avatar :", err);
+                    }
+                });
+            }
+
+            getUserById(userId, (err, updatedUser) => {
+                if (err || !updatedUser) {
+                    return res.status(500).json({ success: false, message: 'Utilisateur introuvable après mise à jour.' });
+                }
+
+                req.session.user = {
+                    id: updatedUser.id,
+                    pseudo: updatedUser.pseudo,
+                    avatar_url: updatedUser.avatar_url,
+                    bio: updatedUser.bio,
+                    role: updatedUser.role
+                };
+                return res.status(200).json({
+                    success: true,
+                    message: 'Profil mis à jour.',
+                    user: req.session.user
+                });
+            });
+        });
+    });
+};
 //////////////////////////////////////////////////////////CONNEXION//////////////////////////////////////////////////////////////
 const loginUser = (req, res) => {
     const { email, password } = req.body;
@@ -76,6 +136,7 @@ const loginUser = (req, res) => {
             id: user.id,
             pseudo: user.pseudo,
             avatar_url: user.avatar_url,
+            bio: user.bio,
             role: user.role
         };
         req.session.save(err => {
@@ -110,4 +171,4 @@ const getCurrentUser = (req, res) => {
     }
 };
 
-module.exports = { registerUser, loginUser, getCurrentUser  };
+module.exports = { registerUser, loginUser, getCurrentUser, updateUser  };

@@ -3,10 +3,11 @@ const router = express.Router();
 
 const validateUser = require('../middleware/validateUser');
 const validateLogin = require('../middleware/validateLogin');
-const handleMulterError = require('../middleware/validateMulter');
 const uploadAvatar = require('../middleware/uploadAvatar');
+const handleMulterError = require('../middleware/validateMulter');
+const validateUpdate = require("../middleware/validateUpdate");
+const { registerUser, loginUser, getCurrentUser, updateUser} = require('../controllers/authController');
 
-const { registerUser, loginUser, getCurrentUser  } = require('../controllers/authController');
 
 // Inscription
 router.post('/inscription', (req, res, next) =>
@@ -18,6 +19,9 @@ router.post('/inscription', (req, res, next) =>
 
 // Connexion
 router.post('/connexion', validateLogin, loginUser);
+
+// Update
+router.put('/update', uploadAvatar.single('avatar'), validateUpdate, updateUser);
 
 // Sauvegarde Session
 router.get('/me', getCurrentUser);

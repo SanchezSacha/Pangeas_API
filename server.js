@@ -25,6 +25,9 @@ app.use(session({
 app.use(corsMiddleware);
 app.use(express.json());
 
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 const placesRoutes = require('./routes/placesRoute');
 const authRoute = require('./routes/authRoute');
