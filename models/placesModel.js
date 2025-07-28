@@ -20,7 +20,6 @@ const placeSchema = new mongoose.Schema({
 
 const Place = mongoose.model('Place', placeSchema);
 
-// Fonction pour retrouver un lieu par son ID MongoDB
 const getPlaceById = async (id) => {
     try {
         return await Place.findById(id).lean();
