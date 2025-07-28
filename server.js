@@ -32,10 +32,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const placesRoutes = require('./routes/placesRoute');
 const authRoute = require('./routes/authRoute');
 const visitRoutes = require('./routes/visitRoute');
+const favoriteRoute = require('./routes/favoriteRoute');
 app.use('/accueil', placesRoutes);
 app.use('/api/auth', authRoute);
 app.use('/api/visit', visitRoutes);
-
+app.use('/api/favorites', favoriteRoute);
 
 app.get('/', (req, res) => {
     res.send('Bienvenue sur l’API Pangeas');
@@ -45,7 +46,7 @@ app.get('/', (req, res) => {
 connectMongo()
     .then(() => {
         app.listen(3000, () => {
-            console.log('🚀 Serveur lancé sur http://localhost:3000');
+            console.log('Serveur lancé sur http://localhost:3000');
         });
     })
     .catch((err) => {
