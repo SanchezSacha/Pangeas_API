@@ -1,4 +1,5 @@
-const { getOngoingVisitByUserId, startVisit, deleteVisitByUserId } = require('../models/visitModel');
+const { getOngoingVisitByUserId, startVisit, deleteVisitByUserId, getVisitedPlacesByUser, countVisitedPlacesByUser } = require('../models/visitModel');
+const {Place} = require("../models/placesModel");
 
 const startUserVisit = async (req, res) => {
     const user_id = req.session?.user?.id;
@@ -67,4 +68,36 @@ const cancelVisit = async (req, res) => {
     }
 };
 
-module.exports = {startUserVisit, cancelVisit, getOngoingVisit };
+const getVisitedPlaces = async (req, res) => {
+    const userId = req.session?.user?.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    if (!userId) {
+        return res.status(401).json({ success: false, message: "Non authentifié" });
+    }
+    try {
+        const visits = await getVisitedPlacesByUser(userId, limit, offset);
+        const placeIds = visits.map(v => v.place_id);
+        const places = await Place.find({ _id: { $in: placeIds } }).lean();
+
+        const placesWithDate = placeIds.map(id => {
+            const place = places.find(p => p._id.toString() === id);
+            const visit = visits.find(v => v.place_id === id);
+            return place ? { ...place, validated_at: visit?.validated_at } : null;
+        }).filter(p => p !== null);
+
+        const totalVisited = await countVisitedPlacesByUser(userId);
+        return res.status(200).json({
+            success: true,
+            places: placesWithDate,
+            total: totalVisited
+        });
+    } catch (err) {
+        console.error("Erreur dans getVisitedPlaces :", err);
+        return res.status(500).json({ success: false, message: "Erreur serveur" });
+    }
+};
+
+module.exports = {startUserVisit, cancelVisit, getOngoingVisit, getVisitedPlaces};
