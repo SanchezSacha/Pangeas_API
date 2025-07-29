@@ -82,36 +82,65 @@ const deleteVisitByUserId = (userId) => {
 };
 
 // Met à jour les statistiques utilisateur après une visite validée
-    const updateUserStats = (userId, distanceKm, placeType) => {
-        return new Promise((resolve, reject) => {
-            const fieldMap = {
-                nature: 'nature_count',
-                urbain: 'urban_count',
-                historique: 'historical_count',
-                secret: 'secret_count',
-                frisson: 'spooky_count'
-            };
-
-            const typeField = fieldMap[placeType];
-            if (!typeField) {
-                return reject(new Error(`Type de lieu inconnu : ${placeType}`));
-            }
-
-            const query = `
-                INSERT INTO user_stats (user_id, total_km, total_places, ${typeField})
-                VALUES (?, ?, 1, 1)
-                ON DUPLICATE KEY UPDATE
-                    total_km = total_km + VALUES(total_km),
-                    total_places = total_places + 1,
-                    ${typeField} = ${typeField} + 1
-            `;
-
-            db.query(query, [userId, distanceKm], (err, result) => {
-                if (err) return reject(err);
-                resolve(result);
-            });
+const updateUserStats = (userId, distanceKm, placeType) => {
+    return new Promise((resolve, reject) => {
+        const fieldMap = {
+            nature: 'nature_count',
+            urbain: 'urban_count',
+            historique: 'historical_count',
+            secret: 'secret_count',
+            frisson: 'spooky_count'
+        };
+        const typeField = fieldMap[placeType];
+        if (!typeField) {
+            return reject(new Error(`Type de lieu inconnu : ${placeType}`));
+        }
+        const query = `
+            INSERT INTO user_stats (user_id, total_km, total_places, ${typeField})
+            VALUES (?, ?, 1, 1)
+            ON DUPLICATE KEY UPDATE
+                total_km = total_km + VALUES(total_km),
+                total_places = total_places + 1,
+                ${typeField} = ${typeField} + 1
+        `;
+        db.query(query, [userId, distanceKm], (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
         });
-    };
+    });
+};
+// Récupère les lieux "visité"
+const getVisitedPlacesByUser = (userId, limit = 10, offset = 0) => {
+    return new Promise((resolve, reject) => {
+        const query = `
+            SELECT place_id, validated_at 
+            FROM user_visits 
+            WHERE user_id = ? AND status = 'visited'
+            ORDER BY validated_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        db.query(query, [userId, limit, offset], (err, results) => {
+            if (err) return reject(err);
+            resolve(results);
+        });
+    });
+};
+// Compte le nombre de lieux "visité"
+const countVisitedPlacesByUser = (userId) => {
+    return new Promise((resolve, reject) => {
+        const query = `
+            SELECT COUNT(*) AS total 
+            FROM user_visits 
+            WHERE user_id = ? AND status = 'visited'
+        `;
+        db.query(query, [userId], (err, results) => {
+            if (err) return reject(err);
+            resolve(results[0].total);
+        });
+    });
+};
+
+
 
 
 module.exports = {
@@ -120,5 +149,7 @@ module.exports = {
     startVisit,
     markVisitAsValidated,
     deleteVisitByUserId,
-    updateUserStats
+    updateUserStats,
+    getVisitedPlacesByUser,
+    countVisitedPlacesByUser
 };
