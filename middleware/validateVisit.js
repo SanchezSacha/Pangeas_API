@@ -1,4 +1,4 @@
-const { getOngoingVisitByPlaceAndUser, markVisitAsValidated } = require('../models/visitModel');
+const { getOngoingVisitByPlaceAndUser, markVisitAsValidated, updateUserStats } = require('../models/visitModel');
 const { getPlaceById } = require('../models/placesModel');
 const haversine = require('haversine-distance');
 
@@ -37,6 +37,9 @@ const validateVisit = async (req, res) => {
         }
 
         await markVisitAsValidated(ongoingVisit.id, distanceKm);
+
+        const placeType = place.category;
+        await updateUserStats(user_id, distanceKm, placeType);
 
         return res.status(200).json({
             success: true,
