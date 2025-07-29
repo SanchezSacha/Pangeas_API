@@ -81,4 +81,44 @@ const deleteVisitByUserId = (userId) => {
     });
 };
 
-module.exports = {getOngoingVisitByUserId, getOngoingVisitByPlaceAndUser, startVisit, markVisitAsValidated, deleteVisitByUserId};
+// Met à jour les statistiques utilisateur après une visite validée
+    const updateUserStats = (userId, distanceKm, placeType) => {
+        return new Promise((resolve, reject) => {
+            const fieldMap = {
+                nature: 'nature_count',
+                urbain: 'urban_count',
+                historique: 'historical_count',
+                secret: 'secret_count',
+                frisson: 'spooky_count'
+            };
+
+            const typeField = fieldMap[placeType];
+            if (!typeField) {
+                return reject(new Error(`Type de lieu inconnu : ${placeType}`));
+            }
+
+            const query = `
+                INSERT INTO user_stats (user_id, total_km, total_places, ${typeField})
+                VALUES (?, ?, 1, 1)
+                ON DUPLICATE KEY UPDATE
+                    total_km = total_km + VALUES(total_km),
+                    total_places = total_places + 1,
+                    ${typeField} = ${typeField} + 1
+            `;
+
+            db.query(query, [userId, distanceKm], (err, result) => {
+                if (err) return reject(err);
+                resolve(result);
+            });
+        });
+    };
+
+
+module.exports = {
+    getOngoingVisitByUserId,
+    getOngoingVisitByPlaceAndUser,
+    startVisit,
+    markVisitAsValidated,
+    deleteVisitByUserId,
+    updateUserStats
+};
