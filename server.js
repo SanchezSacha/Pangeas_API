@@ -33,10 +33,13 @@ const placesRoutes = require('./routes/placesRoute');
 const authRoute = require('./routes/authRoute');
 const visitRoutes = require('./routes/visitRoute');
 const favoriteRoute = require('./routes/favoriteRoute');
+const statsRoute = require('./routes/statsRoute');
+
 app.use('/accueil', placesRoutes);
 app.use('/api/auth', authRoute);
 app.use('/api/visit', visitRoutes);
 app.use('/api/favorites', favoriteRoute);
+app.use('/api/stats', statsRoute);
 
 app.get('/', (req, res) => {
     res.send('Bienvenue sur l’API Pangeas');
