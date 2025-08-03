@@ -36,6 +36,7 @@ const favoriteRoute = require('./routes/favoriteRoute');
 const statsRoute = require('./routes/statsRoute');
 
 app.use('/accueil', placesRoutes);
+app.use('/api/places', placesRoutes);
 app.use('/api/auth', authRoute);
 app.use('/api/visit', visitRoutes);
 app.use('/api/favorites', favoriteRoute);
