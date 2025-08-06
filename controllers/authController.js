@@ -2,13 +2,15 @@ const bcrypt = require('bcrypt');
 const { createUser, getUserByEmail, getUserById, updateUserById} = require('../models/userModel');
 const path = require('path');
 const {unlink} = require("fs");
+const { verifyPassword, hashPassword } = require('../utils/authHelper');
+const { createDefaultUserSettings } = require('../models/settingsModel')
 
 //////////////////////////////////////////////////////////INSCRIPTION//////////////////////////////////////////////////////////////
 const registerUser = async (req, res) => {
     try {
         const { pseudo, email, password, bio, cgu_accepted } = req.body;
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await hashPassword(password);
 
         let avatarUrl;
         if (req.file) {
@@ -27,7 +29,7 @@ const registerUser = async (req, res) => {
             true,
         ];
 
-        createUser(userData, (err, result) => {
+        createUser(userData, async (err, result) => {
             if (err) {
                 console.error('Erreur lors de l’enregistrement :', err);
                 return res.status(500).json({
@@ -35,10 +37,20 @@ const registerUser = async (req, res) => {
                     message: 'Erreur lors de l’inscription. Veuillez réessayer plus tard.'
                 });
             }
-            return res.status(201).json({
-                success: true,
-                message: 'Inscription réussie. Veuillez vous connecter.'
-            });
+            const insertedUserId = result.insertId;
+            try {
+                await createDefaultUserSettings(insertedUserId);
+                return res.status(201).json({
+                    success: true,
+                    message: 'Inscription réussie. Veuillez vous connecter.'
+                });
+            } catch (settingsError) {
+                console.error('Erreur lors de la création des paramètres utilisateur :', settingsError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Erreur lors de l’initialisation des paramètres utilisateur.'
+                });
+            }
         });
     } catch (error) {
         res.status(500).json({
@@ -125,7 +137,7 @@ const loginUser = (req, res) => {
                 errors: [{ field: 'email', message: 'Aucun compte trouvé avec cet email.' }]
             });
         }
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await verifyPassword(password, user.password);
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
@@ -134,6 +146,7 @@ const loginUser = (req, res) => {
         }
         req.session.user = {
             id: user.id,
+            email: user.email,
             pseudo: user.pseudo,
             avatar_url: user.avatar_url,
             bio: user.bio,

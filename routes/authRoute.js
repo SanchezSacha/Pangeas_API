@@ -7,6 +7,7 @@ const uploadAvatar = require('../middleware/uploadAvatar');
 const handleMulterError = require('../middleware/validateMulter');
 const validateUpdate = require("../middleware/validateUpdate");
 const { registerUser, loginUser, getCurrentUser, updateUser} = require('../controllers/authController');
+const requireAuth = require('../middleware/requireAuth');
 
 
 // Inscription
@@ -21,13 +22,13 @@ router.post('/inscription', (req, res, next) =>
 router.post('/connexion', validateLogin, loginUser);
 
 // Update
-router.put('/update', uploadAvatar.single('avatar'), validateUpdate, updateUser);
+router.put('/update', requireAuth, uploadAvatar.single('avatar'), validateUpdate, updateUser);
 
 // Sauvegarde Session
-router.get('/me', getCurrentUser);
+router.get('/me', requireAuth, getCurrentUser);
 
 // Déconnexion
-router.post('/logout', (req, res) => {
+router.post('/logout', requireAuth, (req, res) => {
     req.session.destroy(err => {
         if (err) {
             console.error('Erreur lors de la suppression de la session:', err);

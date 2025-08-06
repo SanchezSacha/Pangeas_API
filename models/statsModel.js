@@ -23,10 +23,19 @@ const getStatsByUserId = (userId) => {
                     spooky_count: 0
                 });
             }
-
             resolve(results[0]);
         });
     });
 };
 
-module.exports = { getStatsByUserId };
+const deleteStatsByUserId = (userId) => {
+    return new Promise((resolve, reject) => {
+        const query = `DELETE FROM user_stats WHERE user_id = ?`;
+        db.query(query, [userId], (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+};
+
+module.exports = { getStatsByUserId, deleteStatsByUserId };
