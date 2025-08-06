@@ -1,5 +1,6 @@
 const { getOngoingVisitByUserId, startVisit, deleteVisitByUserId, getVisitedPlacesByUser, countVisitedPlacesByUser } = require('../models/visitModel');
-const {Place} = require("../models/placesModel");
+const { getPlacesCollection } = require('../BDD/mongo');
+const { ObjectId } = require('mongodb');
 
 const startUserVisit = async (req, res) => {
     const user_id = req.session?.user?.id;
@@ -80,7 +81,10 @@ const getVisitedPlaces = async (req, res) => {
     try {
         const visits = await getVisitedPlacesByUser(userId, limit, offset);
         const placeIds = visits.map(v => v.place_id);
-        const places = await Place.find({ _id: { $in: placeIds } }).lean();
+
+        const placesCollection = getPlacesCollection();
+        const objectIds = placeIds.map(id => new ObjectId(id));
+        const places = await placesCollection.find({ _id: { $in: objectIds } }).toArray();
 
         const placesWithDate = placeIds.map(id => {
             const place = places.find(p => p._id.toString() === id);

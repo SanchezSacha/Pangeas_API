@@ -50,9 +50,32 @@ const updateUserById = (id, { pseudo, bio, avatar_url }, callback) => {
     db.query(query, values, callback);
 };
 
+const updateUserEmail = (id, newEmail, callback) => {
+    const query = `UPDATE users SET email = ? WHERE id = ?`;
+    db.query(query, [newEmail, id], callback);
+};
+
+const updateUserPassword = (id, hashedPassword, callback) => {
+    const query = `UPDATE users SET password = ? WHERE id = ?`;
+    db.query(query, [hashedPassword, id], callback);
+};
+
+const deleteUserById = (userId) => {
+    return new Promise((resolve, reject) => {
+        const query = `DELETE FROM users WHERE id = ?`;
+        db.query(query, [userId], (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+};
+
 module.exports = {
     createUser,
     getUserByEmail,
     getUserById,
-    updateUserById
+    updateUserById,
+    updateUserEmail,
+    updateUserPassword,
+    deleteUserById
 };

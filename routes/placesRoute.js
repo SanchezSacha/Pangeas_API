@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { Place, getPlaceById } = require('../models/placesModel');
+const { getAllPlaces, getPlaceById } = require('../models/placesModel');
 
 router.get('/', async (req, res) => {
     try {
-        const places = await Place.find();
+        const places = await getAllPlaces();
         res.json(places);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 });

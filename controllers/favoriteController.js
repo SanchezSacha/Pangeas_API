@@ -1,5 +1,5 @@
 const favoriteModel = require('../models/favoriteModel');
-const { Place } = require('../models/placesModel');
+const { getPlacesCollection } = require('../BDD/mongo');
 const { ObjectId } = require('mongodb');
 
 exports.addFavorite = async (req, res) => {
@@ -42,7 +42,8 @@ exports.getFavorites = async (req, res) => {
         const favorites = await favoriteModel.getFavoritesByUser(userId);
         const placeIds = favorites.map(f => new ObjectId(f.place_id));
 
-        const places = await Place.find({ _id: { $in: placeIds } }).lean();
+        const placesCollection = getPlacesCollection();
+        const places = await placesCollection.find({ _id: { $in: placeIds } }).toArray();
 
         const orderedPlaces = placeIds.map(id =>
             places.find(place => place._id.toString() === id.toString())
