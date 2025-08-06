@@ -1,5 +1,7 @@
 const { check, validationResult } = require('express-validator');
 const sanitizeHtml = require('sanitize-html');
+const handleValidationErrors = require('./handleValidationErrors');
+
 
 const validateUser = [
     check('pseudo')
@@ -36,20 +38,7 @@ const validateUser = [
         .isLength({ max: 150 }).withMessage('150 caractères max')
         .customSanitizer(value => sanitizeHtml(value)),
 
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
-                success: false,
-                errors: errors.array().map(err => ({
-                    field: err.path,
-                    message: err.msg
-                }))
-            });
-        }
-        next();
-    }
-
+    handleValidationErrors
 ];
 
 module.exports = validateUser;
