@@ -26,6 +26,16 @@ const getUserById = (id, callback) => {
     });
 };
 
+const getTotalUsers = () => {
+    return new Promise((resolve, reject) => {
+        const sql = 'SELECT COUNT(*) AS count FROM users';
+        db.query(sql, (err, results) => {
+            if (err) return reject(err);
+            resolve(results[0].count);
+        });
+    });
+};
+
 const updateUserById = (id, { pseudo, bio, avatar_url }, callback) => {
     const fields = [];
     const values = [];
@@ -74,6 +84,7 @@ module.exports = {
     createUser,
     getUserByEmail,
     getUserById,
+    getTotalUsers,
     updateUserById,
     updateUserEmail,
     updateUserPassword,
