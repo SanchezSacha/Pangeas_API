@@ -109,6 +109,17 @@ const updateUserStats = (userId, distanceKm, placeType) => {
         });
     });
 };
+
+const getTotalVisited = () => {
+    return new Promise((resolve, reject) => {
+        const sql = "SELECT COUNT(*) AS count FROM user_visits WHERE status = 'visited'";
+        db.query(sql, (err, results) => {
+            if (err) return reject(err);
+            resolve(results[0].count);
+        });
+    });
+};
+
 // Récupère les lieux "visité"
 const getVisitedPlacesByUser = (userId, limit = 10, offset = 0) => {
     return new Promise((resolve, reject) => {
@@ -140,9 +151,6 @@ const countVisitedPlacesByUser = (userId) => {
     });
 };
 
-
-
-
 module.exports = {
     getOngoingVisitByUserId,
     getOngoingVisitByPlaceAndUser,
@@ -150,6 +158,7 @@ module.exports = {
     markVisitAsValidated,
     deleteVisitByUserId,
     updateUserStats,
+    getTotalVisited,
     getVisitedPlacesByUser,
     countVisitedPlacesByUser
 };
