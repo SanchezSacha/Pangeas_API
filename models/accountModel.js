@@ -2,7 +2,6 @@ const db = require('../BDD/mysql');
 const { ObjectId } = require('mongodb');
 const { getPlacesCollection } = require('../BDD/mongo');
 
-// Supprime toutes les données liées à l'utilisateur (mais PAS l'utilisateur)
 const deleteUserData = async (userId) => {
     const connection = await db.promise().getConnection();
     try {
@@ -22,7 +21,6 @@ const deleteUserData = async (userId) => {
     }
 };
 
-// Supprime le compte complètement (hard delete)
 const deleteAccountCompletely = async (userId) => {
     const connection = await db.promise().getConnection();
     try {
@@ -39,7 +37,6 @@ const deleteAccountCompletely = async (userId) => {
     }
 };
 
-// Récupération des données pour l'export
 const getUserDataForExport = async (userId) => {
     const [userRows] = await db.promise().query(`SELECT id, pseudo, email, bio, avatar_url, cgu_accepted, created_at FROM users WHERE id = ?`, [userId]);
     const [statsRows] = await db.promise().query(`SELECT * FROM user_stats WHERE user_id = ?`, [userId]);

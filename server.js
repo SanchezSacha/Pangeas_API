@@ -35,6 +35,9 @@ const visitRoutes = require('./routes/visitRoute');
 const favoriteRoute = require('./routes/favoriteRoute');
 const statsRoute = require('./routes/statsRoute');
 const settingsRoute = require('./routes/settingsRoute');
+// Admin
+const adminUserRoutes = require('./routes/admin/userAdminRoutes');
+const adminPlacesRoutes = require('./routes/admin/placeAdminRoutes');
 
 app.use('/accueil', placesRoutes);
 app.use('/api/places', placesRoutes);
@@ -43,14 +46,16 @@ app.use('/api/visit', visitRoutes);
 app.use('/api/favorites', favoriteRoute);
 app.use('/api/stats', statsRoute);
 app.use('/api/settings', settingsRoute);
+// Admin
+app.use('/api/admin', adminUserRoutes);
+app.use('/api/admin/places', adminPlacesRoutes);
+
 
 
 
 app.get('/', (req, res) => {
     res.send('Bienvenue sur l’API Pangeas');
 });
-
-// Lancement API
 connectMongo()
     .then(() => {
         app.listen(3000, () => {
