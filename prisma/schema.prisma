@@ -85,7 +85,7 @@ model User {
   loginStreakCount Int       @default(0) @map("login_streak_count")
   lastStreakDate   DateTime? @map("last_streak_date") @db.Date
   createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   settings          UserSettings?
   visits            UserVisit[]
@@ -118,7 +118,7 @@ model UserSettings {
   offlineEnabled         Boolean  @default(true) @map("offline_enabled")
   offlineAutoSyncEnabled Boolean  @default(true) @map("offline_auto_sync_enabled")
   createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -141,7 +141,7 @@ model UserVisit {
   validationLat Float?      @map("validation_lat")
   validationLng Float?      @map("validation_lng")
   createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
 
   user              User               @relation(fields: [userId], references: [id])
   pointTransactions PointTransaction[]
@@ -175,7 +175,7 @@ model UserStats {
   secretCount     Int       @default(0) @map("secret_count")
   spookyCount     Int       @default(0) @map("spooky_count")
   lastVisitAt     DateTime? @map("last_visit_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id])
 
@@ -265,7 +265,7 @@ model Partner {
   logoUrl     String?  @map("logo_url") @db.VarChar(255)
   websiteUrl  String?  @map("website_url") @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   rewards           Reward[]
   donationCampaigns DonationCampaign[]
@@ -283,7 +283,7 @@ model Reward {
   imageUrl    String?    @map("image_url") @db.VarChar(255)
   isActive    Boolean    @default(true) @map("is_active")
   createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
 
   partner     Partner?           @relation(fields: [partnerId], references: [id])
   couponCodes CouponCode[]
@@ -344,7 +344,7 @@ model DonationCampaign {
   imageUrl      String?   @map("image_url") @db.VarChar(255)
   isActive      Boolean   @default(true) @map("is_active")
   createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
   partner   Partner?   @relation(fields: [partnerId], references: [id])
   donations Donation[]
@@ -381,7 +381,7 @@ model PlaceSubmission {
   adminComment String?         @map("admin_comment") @db.Text
   mongoPlaceId String?         @map("mongo_place_id") @db.VarChar(24)
   createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
   approvedAt  DateTime?        @map("approved_at")
 
   user        User                      @relation(fields: [userId], references: [id])

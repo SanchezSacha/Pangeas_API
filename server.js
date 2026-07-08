@@ -7,6 +7,7 @@ const mysql = require('./BDD/mysql');
 const corsMiddleware = require('./middleware/Cors/cors');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // Session
 app.use(session({
@@ -58,8 +59,8 @@ app.get('/', (req, res) => {
 });
 connectMongo()
     .then(() => {
-        app.listen(3000, () => {
-            console.log('Serveur lancé sur http://localhost:3000');
+        app.listen(PORT, () => {
+            console.log(`Serveur lancé sur http://localhost:${PORT}`);
         });
     })
     .catch((err) => {
