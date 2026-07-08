@@ -1,0 +1,445 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum UserStatus {
+  active
+  disabled
+  anonymized
+  deleted
+}
+
+enum VisitStatus {
+  ongoing
+  visited
+  cancelled
+}
+
+enum VisitSource {
+  online
+  offline_sync
+}
+
+enum PlaceCategory {
+  nature
+  urbain
+  historique
+  frisson
+  secret
+}
+
+enum SubmissionStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum RewardType {
+  coupon
+  badge
+  discount
+  donation
+}
+
+enum CouponStatus {
+  available
+  reserved
+  used
+  expired
+}
+
+enum RedemptionStatus {
+  pending
+  completed
+  cancelled
+  refunded
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  pseudo           String    @db.VarChar(50)
+  email            String    @unique @db.VarChar(100)
+  passwordHash     String    @map("password") @db.VarChar(255)
+  bio              String?   @db.Text
+  avatarUrl        String?   @map("avatar_url") @db.VarChar(255)
+  role             UserRole  @default(user)
+  cguAccepted      Boolean   @default(false) @map("cgu_accepted")
+  isActive         Boolean   @default(true) @map("is_active")
+  status           UserStatus @default(active)
+  isEmailVerified  Boolean   @default(false) @map("is_email_verified")
+  anonymizedAt     DateTime? @map("anonymized_at")
+  deletedAt        DateTime? @map("deleted_at")
+  lastLoginAt      DateTime? @map("last_login_at")
+  loginStreakCount Int       @default(0) @map("login_streak_count")
+  lastStreakDate   DateTime? @map("last_streak_date") @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  settings          UserSettings?
+  visits            UserVisit[]
+  favorites         UserFavorite[]
+  stats             UserStats?
+  passwordResets    PasswordResetToken[]
+  pointAccount      PointAccount?
+  pointTransactions PointTransaction[]
+  milestones        UserMilestone[]
+  rewardRedemptions RewardRedemption[]
+  donations         Donation[]
+  placeSubmissions  PlaceSubmission[]
+  assignedCoupons   CouponCode[]
+  placeModerations  PlaceSubmissionModeration[]
+  notifications     InternalNotification[]
+  syncEvents        SyncEvent[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  userId                 Int      @id @map("user_id")
+  dataExported           Boolean  @default(false) @map("data_exported")
+  legalVersionAcknowledged String? @map("legal_version_acknowledged") @db.VarChar(20)
+  theme                  String   @default("system") @db.VarChar(40)
+  language               String   @default("fr") @db.VarChar(10)
+  marketingEmails        Boolean  @default(false) @map("marketing_emails")
+  privacyLevel           String   @default("standard") @map("privacy_level") @db.VarChar(40)
+  notificationsEnabled   Boolean  @default(true) @map("notifications_enabled")
+  offlineEnabled         Boolean  @default(true) @map("offline_enabled")
+  offlineAutoSyncEnabled Boolean  @default(true) @map("offline_auto_sync_enabled")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model UserVisit {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  placeId       String      @map("place_id") @db.VarChar(24)
+  status        VisitStatus
+  source        VisitSource @default(online)
+  startedAt     DateTime?   @map("started_at")
+  validatedAt   DateTime?   @map("validated_at")
+  cancelledAt   DateTime?   @map("cancelled_at")
+  syncedAt      DateTime?   @map("synced_at")
+  clientEventId String?     @unique @map("client_event_id") @db.VarChar(80)
+  distanceKm    Float?      @map("distance_km")
+  gpsAccuracyM  Float?      @map("gps_accuracy_m")
+  validationLat Float?      @map("validation_lat")
+  validationLng Float?      @map("validation_lng")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  user              User               @relation(fields: [userId], references: [id])
+  pointTransactions PointTransaction[]
+
+  @@index([userId, status])
+  @@index([placeId])
+  @@map("user_visits")
+}
+
+model UserFavorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  placeId   String   @map("place_id") @db.VarChar(24)
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, placeId])
+  @@index([placeId])
+  @@map("user_favorites")
+}
+
+model UserStats {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique @map("user_id")
+  totalKm         Float     @default(0) @map("total_km")
+  totalPlaces     Int       @default(0) @map("total_places")
+  natureCount     Int       @default(0) @map("nature_count")
+  urbanCount      Int       @default(0) @map("urban_count")
+  historicalCount Int       @default(0) @map("historical_count")
+  secretCount     Int       @default(0) @map("secret_count")
+  spookyCount     Int       @default(0) @map("spooky_count")
+  lastVisitAt     DateTime? @map("last_visit_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_stats")
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+model SyncEvent {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  type      String    @db.VarChar(50)
+  entityId  String?   @map("entity_id") @db.VarChar(80)
+  action    String    @db.VarChar(30)
+  payload   Json
+  isSynced  Boolean   @default(false) @map("is_synced")
+  createdAt DateTime  @default(now()) @map("created_at")
+  syncedAt  DateTime? @map("synced_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isSynced])
+  @@map("sync_events")
+}
+
+model PointAccount {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique @map("user_id")
+  totalPoints     Int      @default(0) @map("total_points")
+  availablePoints Int      @default(0) @map("available_points")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("point_accounts")
+}
+
+model PointTransaction {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  relatedVisitId Int?     @map("related_visit_id")
+  type           String   @db.VarChar(50)
+  points         Int
+  reason         String   @db.VarChar(160)
+  referenceType  String?  @map("reference_type") @db.VarChar(50)
+  referenceId    String?  @map("reference_id") @db.VarChar(80)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User       @relation(fields: [userId], references: [id])
+  relatedVisit UserVisit? @relation(fields: [relatedVisitId], references: [id])
+
+  @@unique([userId, type, referenceId])
+  @@index([userId, createdAt])
+  @@map("point_transactions")
+}
+
+model UserMilestone {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  milestoneKey String   @map("milestone_key") @db.VarChar(80)
+  achievedAt   DateTime @default(now()) @map("achieved_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, milestoneKey])
+  @@map("user_milestones")
+}
+
+model Partner {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(120)
+  description String?  @db.Text
+  logoUrl     String?  @map("logo_url") @db.VarChar(255)
+  websiteUrl  String?  @map("website_url") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rewards           Reward[]
+  donationCampaigns DonationCampaign[]
+
+  @@map("partners")
+}
+
+model Reward {
+  id          Int        @id @default(autoincrement())
+  partnerId   Int?       @map("partner_id")
+  name        String     @db.VarChar(160)
+  description String?    @db.Text
+  type        RewardType
+  pointsCost  Int        @map("points_cost")
+  imageUrl    String?    @map("image_url") @db.VarChar(255)
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  partner     Partner?           @relation(fields: [partnerId], references: [id])
+  couponCodes CouponCode[]
+  redemptions RewardRedemption[]
+
+  @@index([partnerId])
+  @@map("rewards")
+}
+
+model CouponCode {
+  id               Int          @id @default(autoincrement())
+  rewardId         Int          @map("reward_id")
+  code             String       @unique @db.VarChar(120)
+  status           CouponStatus @default(available)
+  assignedToUserId Int?         @map("assigned_to_user_id")
+  assignedAt       DateTime?    @map("assigned_at")
+  expiresAt        DateTime?    @map("expires_at")
+  usageLimit       Int?         @map("usage_limit")
+  usedCount        Int          @default(0) @map("used_count")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  reward         Reward             @relation(fields: [rewardId], references: [id])
+  assignedToUser User?              @relation(fields: [assignedToUserId], references: [id])
+  redemptions    RewardRedemption[]
+
+  @@index([rewardId])
+  @@index([status])
+  @@map("coupon_codes")
+}
+
+model RewardRedemption {
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  rewardId     Int              @map("reward_id")
+  couponCodeId Int?             @map("coupon_code_id")
+  pointsSpent  Int              @map("points_spent")
+  status       RedemptionStatus @default(pending)
+  redeemedAt   DateTime?        @map("redeemed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  reward     Reward      @relation(fields: [rewardId], references: [id])
+  couponCode CouponCode? @relation(fields: [couponCodeId], references: [id])
+
+  @@index([userId])
+  @@map("reward_redemptions")
+}
+
+model DonationCampaign {
+  id            Int       @id @default(autoincrement())
+  partnerId     Int?      @map("partner_id")
+  name          String    @db.VarChar(160)
+  description   String?   @db.Text
+  goalAmount    Decimal?  @map("goal_amount") @db.Decimal(10, 2)
+  currentAmount Decimal   @default(0) @map("current_amount") @db.Decimal(10, 2)
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
+  imageUrl      String?   @map("image_url") @db.VarChar(255)
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  partner   Partner?   @relation(fields: [partnerId], references: [id])
+  donations Donation[]
+
+  @@index([partnerId])
+  @@map("donation_campaigns")
+}
+
+model Donation {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  campaignId  Int      @map("campaign_id")
+  amount      Decimal  @db.Decimal(10, 2)
+  pointsSpent Int      @map("points_spent")
+  message     String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user     User             @relation(fields: [userId], references: [id])
+  campaign DonationCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([userId])
+  @@index([campaignId])
+  @@map("donations")
+}
+
+model PlaceSubmission {
+  id          Int              @id @default(autoincrement())
+  userId      Int              @map("user_id")
+  title       String           @db.VarChar(120)
+  description String?          @db.Text
+  category    PlaceCategory
+  coordinates Json
+  status      SubmissionStatus @default(pending)
+  adminComment String?         @map("admin_comment") @db.Text
+  mongoPlaceId String?         @map("mongo_place_id") @db.VarChar(24)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  approvedAt  DateTime?        @map("approved_at")
+
+  user        User                      @relation(fields: [userId], references: [id])
+  photos      PlaceSubmissionPhoto[]
+  moderations PlaceSubmissionModeration[]
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("place_submissions")
+}
+
+model PlaceSubmissionPhoto {
+  id           Int         @id @default(autoincrement())
+  submissionId Int         @map("submission_id")
+  url          String      @db.VarChar(255)
+  thumbnailUrl String?     @map("thumbnail_url") @db.VarChar(255)
+  orderIndex   Int         @default(0) @map("order_index")
+  mimeType     String      @map("mime_type") @db.VarChar(80)
+  sizeBytes    Int         @map("size_bytes")
+  width        Int?
+  height       Int?
+  status       String      @default("pending") @db.VarChar(30)
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  submission PlaceSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@map("place_submission_photos")
+}
+
+model PlaceSubmissionModeration {
+  id           Int      @id @default(autoincrement())
+  submissionId Int      @map("submission_id")
+  adminId      Int      @map("admin_id")
+  action       String   @db.VarChar(30)
+  comment      String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  submission PlaceSubmission @relation(fields: [submissionId], references: [id])
+  admin      User            @relation(fields: [adminId], references: [id])
+
+  @@index([submissionId])
+  @@index([adminId])
+  @@map("place_submission_moderations")
+}
+
+model InternalNotification {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  type      String    @db.VarChar(80)
+  title     String    @db.VarChar(160)
+  message   String    @db.Text
+  link      String?   @db.VarChar(255)
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@map("internal_notifications")
+}
