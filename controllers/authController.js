@@ -1,9 +1,17 @@
 const bcrypt = require('bcrypt');
-const { createUser, getUserByEmail, getUserById, updateUserById} = require('../models/userModel');
+const crypto = require('crypto');
+const { createUser, getUserByEmail, getUserById, updateUserById, updateUserPassword} = require('../models/userModel');
 const path = require('path');
 const {unlink} = require("fs");
 const { verifyPassword, hashPassword } = require('../utils/authHelper');
 const { createDefaultUserSettings } = require('../models/settingsModel')
+const {
+    createPasswordResetToken,
+    markUnusedPasswordResetTokensAsUsed,
+    getValidPasswordResetToken,
+    markPasswordResetTokenAsUsed
+} = require('../models/passwordResetModel');
+const { sendPasswordResetEmail } = require('../services/mailService');
 
 //////////////////////////////////////////////////////////INSCRIPTION//////////////////////////////////////////////////////////////
 const registerUser = async (req, res) => {
@@ -190,4 +198,117 @@ const getCurrentUser = (req, res) => {
     }
 };
 
-module.exports = { registerUser, loginUser, getCurrentUser, updateUser  };
+const getPasswordResetUrl = (token) => {
+    const baseUrl = process.env.FRONTEND_RESET_PASSWORD_URL || 'http://localhost:5173/reset-password';
+    const url = new URL(baseUrl);
+    url.searchParams.set('token', token);
+    return url.toString();
+};
+
+const getGenericPasswordResetResponse = () => ({
+    success: true,
+    message: 'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye.'
+});
+
+const requestPasswordReset = (req, res) => {
+    const email = req.body.email.toLowerCase();
+
+    getUserByEmail(email, (err, user) => {
+        if (err) {
+            console.error('Erreur recherche utilisateur pour reinitialisation :', err);
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        }
+
+        if (!user || user.is_active === 0 || user.status === 'disabled' || user.status === 'anonymized' || user.status === 'deleted') {
+            return res.status(200).json(getGenericPasswordResetResponse());
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+        markUnusedPasswordResetTokensAsUsed(user.id, (markErr) => {
+            if (markErr) {
+                console.error('Erreur invalidation anciens tokens :', markErr);
+                return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+            }
+
+            createPasswordResetToken(user.id, tokenHash, expiresAt, async (createErr) => {
+                if (createErr) {
+                    console.error('Erreur creation token reinitialisation :', createErr);
+                    return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+                }
+
+                const resetUrl = getPasswordResetUrl(token);
+
+                try {
+                    await sendPasswordResetEmail({
+                        to: user.email,
+                        resetUrl
+                    });
+
+                    return res.status(200).json(getGenericPasswordResetResponse());
+                } catch (mailError) {
+                    console.error('Erreur envoi email reinitialisation :', mailError);
+
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.log(`Lien de reinitialisation Pangeas pour ${user.email} : ${resetUrl}`);
+                        return res.status(200).json(getGenericPasswordResetResponse());
+                    }
+
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Impossible d envoyer l email de reinitialisation.'
+                    });
+                }
+            });
+        });
+    });
+};
+
+const resetPassword = (req, res) => {
+    const { token, password } = req.body;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    getValidPasswordResetToken(tokenHash, async (err, resetToken) => {
+        if (err) {
+            console.error('Erreur verification token reinitialisation :', err);
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        }
+
+        if (!resetToken) {
+            return res.status(400).json({
+                success: false,
+                message: 'Le lien de reinitialisation est invalide ou expire.'
+            });
+        }
+
+        try {
+            const hashedPassword = await hashPassword(password);
+
+            updateUserPassword(resetToken.user_id, hashedPassword, (updateErr) => {
+                if (updateErr) {
+                    console.error('Erreur mise a jour mot de passe :', updateErr);
+                    return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+                }
+
+                markPasswordResetTokenAsUsed(resetToken.id, (markErr) => {
+                    if (markErr) {
+                        console.error('Erreur validation token utilise :', markErr);
+                        return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+                    }
+
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Mot de passe reinitialise avec succes.'
+                    });
+                });
+            });
+        } catch (hashError) {
+            console.error('Erreur hash mot de passe reinitialise :', hashError);
+            return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+        }
+    });
+};
+
+module.exports = { registerUser, loginUser, getCurrentUser, updateUser, requestPasswordReset, resetPassword };

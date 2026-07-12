@@ -6,7 +6,8 @@ const validateLogin = require('../middleware/validateLogin');
 const uploadAvatar = require('../middleware/uploadAvatar');
 const handleMulterError = require('../middleware/validateMulter');
 const validateUpdate = require("../middleware/validateUpdate");
-const { registerUser, loginUser, getCurrentUser, updateUser} = require('../controllers/authController');
+const { validateForgotPassword, validateResetPassword } = require('../middleware/validatePasswordReset');
+const { registerUser, loginUser, getCurrentUser, updateUser, requestPasswordReset, resetPassword} = require('../controllers/authController');
 const requireAuth = require('../middleware/requireAuth');
 
 
@@ -20,6 +21,10 @@ router.post('/inscription', (req, res, next) =>
 
 // Connexion
 router.post('/connexion', validateLogin, loginUser);
+
+// Mot de passe oublie
+router.post('/forgot-password', validateForgotPassword, requestPasswordReset);
+router.post('/reset-password', validateResetPassword, resetPassword);
 
 // Update
 router.put('/update', requireAuth, uploadAvatar.single('avatar'), validateUpdate, updateUser);
