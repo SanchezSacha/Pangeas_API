@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const { verifyPassword, hashPassword, authenticateDeletion  } = require('../utils/authHelper');
-const { deleteAccountCompletely, deleteUserData, getUserDataForExport  } = require('../models/accountModel');
+const path = require('path');
+const { unlink } = require('fs');
+const { anonymizeAccount, anonymizeUserData, getUserDataForExport  } = require('../models/accountModel');
 const { updateGeolocationSetting, getGeolocationSetting, markDataAsExported } = require('../models/settingsModel');
 const {
     getUserById,
@@ -93,7 +95,27 @@ exports.updatePassword = (req, res) => {
     });
 };
 
-//////// SUPPRESSION DU COMPTE //////////
+const removePersonalAvatar = (avatarUrl) => {
+    if (!avatarUrl || avatarUrl === '/img-avatar.jpg') {
+        return;
+    }
+    const avatarPath = path.join(__dirname, '..', avatarUrl.replace(/^\/+/, ''));
+    unlink(avatarPath, (err) => {
+        if (err) {
+            console.error("Erreur suppression avatar anonymise :", err);
+        }
+    });
+};
+
+const closeSessionAfterAnonymization = (req, res, message) => {
+    req.session.destroy(err => {
+        if (err) console.error("Erreur destruction session :", err);
+        res.clearCookie('connect.sid', { path: '/' });
+        return res.status(200).json({ success: true, message });
+    });
+};
+
+//////// ANONYMISATION DU COMPTE //////////
 
 exports.deleteAccount = (req, res) => {
     const userId = req.session.user?.id;
@@ -103,14 +125,10 @@ exports.deleteAccount = (req, res) => {
         if (err) {
             return res.status(err.code).json({ success: false, ...(err.message ? { message: err.message } : { errors: err.errors }) });
         }
-
         try {
-            await deleteAccountCompletely(userId);
-            req.session.destroy(err => {
-                if (err) console.error("Erreur destruction session :", err);
-                res.clearCookie('connect.sid', { path: '/' });
-                return res.status(200).json({ success: true, message: "Compte supprimé définitivement." });
-            });
+            const { previousAvatarUrl } = await anonymizeAccount(userId);
+            removePersonalAvatar(previousAvatarUrl);
+            return closeSessionAfterAnonymization(req, res, "Compte anonymise avec succes.");
         } catch (error) {
             console.error("Erreur lors de la suppression du compte :", error);
             return res.status(500).json({ success: false, message: "Erreur serveur." });
@@ -118,7 +136,7 @@ exports.deleteAccount = (req, res) => {
     });
 };
 
-/////////////// SUPPRESSION DES DONNEES ////////////////////
+/////////////// ANONYMISATION DES DONNEES ////////////////////
 
 exports.deleteUserData = (req, res) => {
     const userId = req.session.user?.id;
@@ -129,8 +147,9 @@ exports.deleteUserData = (req, res) => {
             return res.status(err.code).json({ success: false, ...(err.message ? { message: err.message } : { errors: err.errors }) });
         }
         try {
-            await deleteUserData(userId);
-            return res.status(200).json({ success: true, message: "Données personnelles supprimées avec succès." });
+            const { previousAvatarUrl } = await anonymizeUserData(userId);
+            removePersonalAvatar(previousAvatarUrl);
+            return closeSessionAfterAnonymization(req, res, "Donnees personnelles anonymisees avec succes.");
         } catch (error) {
             console.error("Erreur lors de la suppression des données :", error);
             return res.status(500).json({ success: false, message: "Erreur serveur." });

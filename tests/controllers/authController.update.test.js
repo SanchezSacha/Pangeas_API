@@ -1,10 +1,16 @@
-const { updateUser } = require('../../controllers/authController');
-const { getUserById, updateUserById } = require('../../models/userModel');
 const path = require('path');
 const fs = require('fs');
 
-jest.mock('../../models/userModel');
+jest.mock('../../models/userModel', () => ({
+    createUser: jest.fn(),
+    getUserByEmail: jest.fn(),
+    getUserById: jest.fn(),
+    updateUserById: jest.fn()
+}));
 jest.mock('fs');
+
+const { updateUser } = require('../../controllers/authController');
+const { getUserById, updateUserById } = require('../../models/userModel');
 
 describe('updateUser', () => {
     let req;

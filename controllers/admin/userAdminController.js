@@ -38,7 +38,7 @@ exports.deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
         await userAdminModel.deleteUserAndData(userId);
-        res.json({ message: 'Utilisateur et données supprimés' });
+        res.json({ message: 'Utilisateur anonymise avec succes' });
     } catch (err) {
         console.error('Erreur deleteUser :', err);
         res.status(500).json({ error: 'Erreur serveur' });

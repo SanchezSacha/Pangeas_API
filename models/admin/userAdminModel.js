@@ -1,94 +1,126 @@
-const db = require('../../BDD/mysql');
-const { ObjectId } = require('mongodb');
+const prisma = require('../../BDD/prisma');
+const { anonymizeAccount } = require('../accountModel');
 
-const getAllUsers = () => {
-    const sql = `
-        SELECT 
-            users.id,
-            users.pseudo,
-            users.email,
-            users.role,
-            users.created_at,
-            users.updated_at,
-            COUNT(user_visits.id) AS visited_places_count
-        FROM users
-        LEFT JOIN user_visits ON users.id = user_visits.user_id AND user_visits.status = 'visited'
-        GROUP BY users.id
-        ORDER BY users.created_at DESC
-    `;
-    return new Promise((resolve, reject) => {
-        db.query(sql, (err, results) => {
-            if (err) return reject(err);
-            resolve(results);
-        });
+const getAllUsers = async () => {
+    const users = await prisma.user.findMany({
+        select: {
+            id: true,
+            pseudo: true,
+            email: true,
+            role: true,
+            status: true,
+            isActive: true,
+            anonymizedAt: true,
+            deletedAt: true,
+            createdAt: true,
+            updatedAt: true,
+            pointAccount: {
+                select: {
+                    totalPoints: true,
+                    availablePoints: true
+                }
+            },
+            _count: {
+                select: {
+                    donations: true,
+                    favorites: true,
+                    visits: {
+                        where: { status: 'visited' }
+                    }
+                }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    return users.map(user => ({
+        id: user.id,
+        pseudo: user.pseudo,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        is_active: user.isActive,
+        anonymized_at: user.anonymizedAt,
+        deleted_at: user.deletedAt,
+        created_at: user.createdAt,
+        updated_at: user.updatedAt,
+        favorites_count: user._count.favorites,
+        donations_count: user._count.donations,
+        total_points: user.pointAccount?.totalPoints || 0,
+        available_points: user.pointAccount?.availablePoints || 0,
+        visited_places_count: user._count.visits
+    }));
+};
+
+const getUserDetailsById = async (userId) => {
+    const normalizedUserId = Number(userId);
+    const user = await prisma.user.findUnique({
+        where: { id: normalizedUserId },
+        select: {
+            id: true,
+            pseudo: true,
+            email: true,
+            bio: true,
+            avatarUrl: true,
+            role: true,
+            cguAccepted: true,
+            createdAt: true,
+            updatedAt: true,
+            isActive: true,
+            status: true,
+            anonymizedAt: true,
+            deletedAt: true,
+            visits: {
+                where: { status: 'visited' },
+                select: { placeId: true }
+            },
+            stats: true,
+            pointAccount: true,
+            favorites: {
+                select: { id: true }
+            },
+            donations: {
+                select: { id: true }
+            },
+            settings: true
+        }
+    });
+
+    if (!user) {
+        throw new Error('Utilisateur non trouve');
+    }
+
+    return {
+        id: user.id,
+        pseudo: user.pseudo,
+        email: user.email,
+        bio: user.bio,
+        avatar_url: user.avatarUrl,
+        role: user.role,
+        cgu_accepted: user.cguAccepted,
+        created_at: user.createdAt,
+        updated_at: user.updatedAt,
+        is_active: user.isActive,
+        status: user.status,
+        anonymized_at: user.anonymizedAt,
+        deleted_at: user.deletedAt,
+        visited_places: user.visits.map(visit => ({ place_id: visit.placeId })),
+        stats: user.stats || null,
+        points: user.pointAccount || null,
+        favorites_count: user.favorites.length,
+        donations_count: user.donations.length,
+        settings: user.settings || null
+    };
+};
+
+const updateUserById = async (userId, { pseudo, email, role }) => {
+    return prisma.user.update({
+        where: { id: Number(userId) },
+        data: { pseudo, email, role }
     });
 };
 
-const getUserDetailsById = (userId) => {
-    return new Promise((resolve, reject) => {
-        db.query('SELECT id, pseudo, email, bio, avatar_url, role, cgu_accepted, created_at, updated_at, is_active FROM users WHERE id = ?', [userId], (err, userResults) => {
-            if (err) return reject(err);
-            if (!userResults.length) return reject(new Error('Utilisateur non trouvé'));
-
-            const user = userResults[0];
-
-            db.query('SELECT place_id FROM user_visits WHERE user_id = ? AND status = "visited"', [userId], (err, visited) => {
-                if (err) return reject(err);
-                db.query('SELECT * FROM user_stats WHERE user_id = ?', [userId], (err, stats) => {
-                    if (err) return reject(err);
-                    db.query('SELECT * FROM user_favorites WHERE user_id = ?', [userId], (err, favorites) => {
-                        if (err) return reject(err);
-                        db.query('SELECT * FROM user_settings WHERE user_id = ?', [userId], (err, settings) => {
-                            if (err) return reject(err);
-                            resolve({
-                                ...user,
-                                visited_places: visited,
-                                stats: stats[0] || null,
-                                favorites_count: favorites.length,
-                                settings: settings[0] || null
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    });
-};
-
-const updateUserById = (userId, { pseudo, email, role }) => {
-    const sql = `
-        UPDATE users 
-        SET pseudo = ?, email = ?, role = ?, updated_at = NOW()
-        WHERE id = ?
-    `;
-    return new Promise((resolve, reject) => {
-        db.query(sql, [pseudo, email, role, userId], (err, result) => {
-            if (err) return reject(err);
-            resolve(result);
-        });
-    });
-};
-
-const deleteUserAndData = (userId) => {
-    return new Promise((resolve, reject) => {
-        db.query('DELETE FROM user_settings WHERE user_id = ?', [userId], (err) => {
-            if (err) return reject(err);
-            db.query('DELETE FROM user_stats WHERE user_id = ?', [userId], (err) => {
-                if (err) return reject(err);
-                db.query('DELETE FROM user_visits WHERE user_id = ?', [userId], (err) => {
-                    if (err) return reject(err);
-                    db.query('DELETE FROM user_favorites WHERE user_id = ?', [userId], (err) => {
-                        if (err) return reject(err);
-                        db.query('DELETE FROM users WHERE id = ?', [userId], (err) => {
-                            if (err) return reject(err);
-                            resolve();
-                        });
-                    });
-                });
-            });
-        });
-    });
-};
+const deleteUserAndData = (userId) => anonymizeAccount(userId);
 
 module.exports = {
     getAllUsers,
