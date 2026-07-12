@@ -137,6 +137,12 @@ const loginUser = (req, res) => {
                 errors: [{ field: 'email', message: 'Aucun compte trouvé avec cet email.' }]
             });
         }
+        if (user.is_active === 0 || user.status === 'disabled' || user.status === 'anonymized' || user.status === 'deleted') {
+            return res.status(403).json({
+                success: false,
+                message: 'Ce compte n est plus actif.'
+            });
+        }
         const isMatch = await verifyPassword(password, user.password);
         if (!isMatch) {
             return res.status(401).json({

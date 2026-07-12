@@ -1,4 +1,5 @@
 const db = require('../BDD/mysql');
+const { anonymizeAccount } = require('./accountModel');
 
 const createUser = (userData, callback) => {
     const query = `
@@ -71,13 +72,7 @@ const updateUserPassword = (id, hashedPassword, callback) => {
 };
 
 const deleteUserById = (userId) => {
-    return new Promise((resolve, reject) => {
-        const query = `DELETE FROM users WHERE id = ?`;
-        db.query(query, [userId], (err, result) => {
-            if (err) return reject(err);
-            resolve(result);
-        });
-    });
+    return anonymizeAccount(userId);
 };
 
 module.exports = {

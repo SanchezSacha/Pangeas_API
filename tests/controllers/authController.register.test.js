@@ -2,6 +2,9 @@ const { registerUser } = require('../../controllers/authController');
 const { createUser } = require('../../models/userModel');
 
 jest.mock('../../models/userModel');
+jest.mock('../../models/settingsModel', () => ({
+    createDefaultUserSettings: jest.fn().mockResolvedValue()
+}));
 
 describe('registerUser', () => {
     it('devrait renvoyer un succès si l’utilisateur est créé', async () => {
