@@ -27,7 +27,12 @@ router.post('/forgot-password', validateForgotPassword, requestPasswordReset);
 router.post('/reset-password', validateResetPassword, resetPassword);
 
 // Update
-router.put('/update', requireAuth, uploadAvatar.single('avatar'), validateUpdate, updateUser);
+router.put('/update', requireAuth, (req, res, next) =>
+        uploadAvatar.single('avatar')(req, res, (err) => {
+            if (err) return handleMulterError(err, req, res, next);
+            next();
+        }), validateUpdate, updateUser
+);
 
 // Sauvegarde Session
 router.get('/me', requireAuth, getCurrentUser);
