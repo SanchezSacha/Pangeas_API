@@ -10,6 +10,11 @@ exports.addFavorite = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Paramètres manquants' });
     }
     try {
+        const alreadyFavorite = await favoriteModel.existsFavorite(userId, placeId);
+        if (alreadyFavorite) {
+            return res.json({ success: true, favorited: true });
+        }
+
         await favoriteModel.addFavorite(userId, placeId);
         res.json({ success: true, favorited: true });
     } catch (error) {
