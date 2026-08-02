@@ -18,7 +18,7 @@ const getFavoritesByUser = async (userId) => {
 
 const addFavorite = async (userId, placeId) => {
     return db.promise().query(
-        'INSERT INTO user_favorites (user_id, place_id) VALUES (?, ?)',
+        'INSERT IGNORE INTO user_favorites (user_id, place_id) VALUES (?, ?)',
         [userId, placeId]
     );
 };

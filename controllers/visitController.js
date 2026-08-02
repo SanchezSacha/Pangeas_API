@@ -1,12 +1,22 @@
-const { getOngoingVisitByUserId, startVisit, deleteVisitByUserId, getVisitedPlacesByUser, countVisitedPlacesByUser } = require('../models/visitModel');
+const {
+    getOngoingVisitByUserId,
+    getVisitByClientEventId,
+    startVisit,
+    deleteVisitByUserId,
+    getVisitedPlacesByUser,
+    countVisitedPlacesByUser
+} = require('../models/visitModel');
 const { getPlacesCollection } = require('../BDD/mongo');
 const { ObjectId } = require('mongodb');
+const { getIdempotencyKey } = require('../utils/idempotency');
+const { sanitizePlaceOutput } = require('../utils/placeSecurity');
 
 const startUserVisit = async (req, res) => {
     const user_id = req.session?.user?.id;
-    const { place_id, user_lat, user_lng } = req.body;
+    const { place_id } = req.body;
+    const idempotencyKey = getIdempotencyKey(req);
 
-    if (!user_id || !place_id) {
+    if (!user_id || !ObjectId.isValid(place_id)) {
         return res.status(400).json({
             success: false,
             message: "Données manquantes ou utilisateur non connecté."
@@ -14,6 +24,16 @@ const startUserVisit = async (req, res) => {
     }
 
     try {
+        const place = await getPlacesCollection().findOne({ _id: new ObjectId(place_id) }, { projection: { _id: 1 } });
+        if (!place) return res.status(404).json({ success: false, message: 'Lieu introuvable.' });
+
+        if (idempotencyKey) {
+            const previousVisit = await getVisitByClientEventId(user_id, idempotencyKey);
+            if (previousVisit) {
+                return res.status(200).json({ success: true, message: 'Visite déjà prise en compte.', visit: previousVisit });
+            }
+        }
+
         const ongoingVisit = await getOngoingVisitByUserId(user_id);
         if (ongoingVisit) {
             return res.status(400).json({
@@ -22,7 +42,7 @@ const startUserVisit = async (req, res) => {
             });
         }
 
-        const result = await startVisit(user_id, place_id);
+        const result = await startVisit(user_id, place_id, idempotencyKey);
 
         return res.status(200).json({
             success: true,
@@ -71,7 +91,7 @@ const cancelVisit = async (req, res) => {
 
 const getVisitedPlaces = async (req, res) => {
     const userId = req.session?.user?.id;
-    const page = parseInt(req.query.page) || 1;
+    const page = Math.max(1, Math.min(parseInt(req.query.page, 10) || 1, 100000));
     const limit = 10;
     const offset = (page - 1) * limit;
 
@@ -83,13 +103,13 @@ const getVisitedPlaces = async (req, res) => {
         const placeIds = visits.map(v => v.place_id);
 
         const placesCollection = getPlacesCollection();
-        const objectIds = placeIds.map(id => new ObjectId(id));
+        const objectIds = placeIds.filter(ObjectId.isValid).map(id => new ObjectId(id));
         const places = await placesCollection.find({ _id: { $in: objectIds } }).toArray();
 
         const placesWithDate = placeIds.map(id => {
             const place = places.find(p => p._id.toString() === id);
             const visit = visits.find(v => v.place_id === id);
-            return place ? { ...place, validated_at: visit?.validated_at } : null;
+            return place ? sanitizePlaceOutput({ ...place, validated_at: visit?.validated_at }) : null;
         }).filter(p => p !== null);
 
         const totalVisited = await countVisitedPlacesByUser(userId);
