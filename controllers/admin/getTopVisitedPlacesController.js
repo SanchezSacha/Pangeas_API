@@ -1,6 +1,7 @@
 const { getPlacesCollection } = require('../../BDD/mongo');
 const { ObjectId } = require('mongodb');
 const { getTopVisitedPlaceIds } = require('../../models/admin/placeAdminModel');
+const { sanitizePlaceOutput } = require('../../utils/placeSecurity');
 
 const getTopVisitedPlacesController = async (req, res) => {
     try {
@@ -11,11 +12,11 @@ const getTopVisitedPlacesController = async (req, res) => {
         }
 
         const collection = getPlacesCollection();
-        const objectIds = topPlaces.map(p => new ObjectId(p.place_id));
+        const objectIds = topPlaces.filter(p => ObjectId.isValid(p.place_id)).map(p => new ObjectId(p.place_id));
         const mongoPlaces = await collection.find({ _id: { $in: objectIds } }).toArray();
 
         const enriched = topPlaces.map(p => {
-            const placeDetails = mongoPlaces.find(m => m._id.toString() === p.place_id);
+            const placeDetails = sanitizePlaceOutput(mongoPlaces.find(m => m._id.toString() === p.place_id));
             return {
                 place_id: p.place_id,
                 name: placeDetails?.name || 'Inconnu',

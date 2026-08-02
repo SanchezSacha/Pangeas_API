@@ -5,26 +5,41 @@ const session = require('express-session');
 const { connectMongo } = require('./BDD/mongo');
 const mysql = require('./BDD/mysql');
 const corsMiddleware = require('./middleware/Cors/cors');
+const { csrfProtection } = require('./middleware/csrfProtection');
+const securityHeaders = require('./middleware/securityHeaders');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (!sessionSecret || (isProduction && sessionSecret === 'change_me_with_a_long_random_secret')) {
+    throw new Error('SESSION_SECRET doit être une valeur longue et secrète en production.');
+}
+
+if (isProduction) app.set('trust proxy', 1);
+
+app.disable('x-powered-by');
+app.use(securityHeaders);
 
 // Session
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    name: process.env.SESSION_COOKIE_NAME || 'pangeas.sid',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 1000 * 60 * 60 * 2,
+        maxAge: Number(process.env.SESSION_MAX_AGE_MS) || 1000 * 60 * 60 * 2,
         httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
+        secure: isProduction,
+        sameSite: process.env.SESSION_SAME_SITE || 'lax',
     }
 }));
 
 // Middleware
 app.use(corsMiddleware);
 app.use(express.json());
+app.use(csrfProtection);
 
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

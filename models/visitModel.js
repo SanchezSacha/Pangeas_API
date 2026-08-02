@@ -30,16 +30,17 @@ const getOngoingVisitByPlaceAndUser = (userId, placeId) => {
 };
 
 // Marque la visite comme "visited" avec distance
-const markVisitAsValidated = (visitId, distanceKm) => {
+const markVisitAsValidated = (visitId, distanceKm, clientEventId = null) => {
     return new Promise((resolve, reject) => {
         const query = `
             UPDATE user_visits
             SET status = 'visited',
                 validated_at = NOW(),
-                distance_km = ?
-            WHERE id = ?
+                distance_km = ?,
+                client_event_id = COALESCE(?, client_event_id)
+            WHERE id = ? AND status = 'ongoing'
         `;
-        db.query(query, [distanceKm, visitId], (err, result) => {
+        db.query(query, [distanceKm, clientEventId, visitId], (err, result) => {
             if (err) return reject(err);
             resolve(result);
         });
@@ -47,23 +48,35 @@ const markVisitAsValidated = (visitId, distanceKm) => {
 };
 
 // Démarre une nouvelle visite
-const startVisit = (userId, placeId) => {
+const startVisit = (userId, placeId, clientEventId = null) => {
     return new Promise((resolve, reject) => {
         const query = `
-            INSERT INTO user_visits (user_id, place_id, status)
-            VALUES (?, ?, 'ongoing')
+            INSERT INTO user_visits (user_id, place_id, status, client_event_id)
+            VALUES (?, ?, 'ongoing', ?)
         `;
-        db.query(query, [userId, placeId], (err, result) => {
+        db.query(query, [userId, placeId, clientEventId], (err, result) => {
             if (err) return reject(err);
 
             const newVisit = {
                 id: result.insertId,
                 user_id: userId,
                 place_id: placeId,
-                status: 'ongoing'
+                status: 'ongoing',
+                client_event_id: clientEventId
             };
             resolve(newVisit);
         });
+    });
+};
+
+const getVisitByClientEventId = (userId, clientEventId) => {
+    if (!clientEventId) return Promise.resolve(null);
+    return new Promise((resolve, reject) => {
+        db.query(
+            'SELECT * FROM user_visits WHERE user_id = ? AND client_event_id = ? LIMIT 1',
+            [userId, clientEventId],
+            (err, results) => err ? reject(err) : resolve(results[0] || null)
+        );
     });
 };
 
@@ -108,6 +121,53 @@ const updateUserStats = (userId, distanceKm, placeType) => {
             resolve(result);
         });
     });
+};
+
+const validateVisitAndUpdateStats = async (visitId, userId, distanceKm, placeType, clientEventId = null) => {
+    const fieldMap = {
+        nature: 'nature_count',
+        urbain: 'urban_count',
+        historique: 'historical_count',
+        secret: 'secret_count',
+        frisson: 'spooky_count'
+    };
+    const typeField = fieldMap[placeType];
+    if (!typeField) throw new Error(`Type de lieu inconnu : ${placeType}`);
+
+    const connection = await db.promise().getConnection();
+    try {
+        await connection.beginTransaction();
+        const [validationResult] = await connection.query(`
+            UPDATE user_visits
+            SET status = 'visited',
+                validated_at = NOW(),
+                distance_km = ?,
+                client_event_id = COALESCE(?, client_event_id)
+            WHERE id = ? AND user_id = ? AND status = 'ongoing'
+        `, [distanceKm, clientEventId, visitId, userId]);
+
+        if (validationResult.affectedRows !== 1) {
+            await connection.rollback();
+            return false;
+        }
+
+        await connection.query(`
+            INSERT INTO user_stats (user_id, total_km, total_places, ${typeField})
+            VALUES (?, ?, 1, 1)
+            ON DUPLICATE KEY UPDATE
+                total_km = total_km + VALUES(total_km),
+                total_places = total_places + 1,
+                ${typeField} = ${typeField} + 1
+        `, [userId, distanceKm]);
+
+        await connection.commit();
+        return true;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };
 
 const getTotalVisited = () => {
@@ -158,7 +218,9 @@ module.exports = {
     markVisitAsValidated,
     deleteVisitByUserId,
     updateUserStats,
+    validateVisitAndUpdateStats,
     getTotalVisited,
     getVisitedPlacesByUser,
-    countVisitedPlacesByUser
+    countVisitedPlacesByUser,
+    getVisitByClientEventId
 };

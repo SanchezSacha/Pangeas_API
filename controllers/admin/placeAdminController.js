@@ -13,10 +13,11 @@ const { getTotalUsers } = require('../../models/userModel');
 const { getTotalVisited } = require('../../models/visitModel');
 const { getPlacesCollection, getUserVisitsCollection } = require('../../BDD/mongo');
 const { ObjectId } = require('mongodb');
+const { normalizePlaceInput, sanitizePlaceOutput } = require('../../utils/placeSecurity');
 const getAllPlacesController = async (req, res) => {
     try {
         const places = await getAllPlaces();
-        res.status(200).json(places);
+        res.status(200).json(places.map(sanitizePlaceOutput));
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la récupération des lieux.' });
     }
@@ -29,46 +30,25 @@ const getPlaceByIdController = async (req, res) => {
         const place = await getPlaceById(id);
         if (!place) return res.status(404).json({ error: 'Lieu non trouvé.' });
 
-        res.status(200).json(place);
+        res.status(200).json(sanitizePlaceOutput(place));
     } catch (err) {
         res.status(500).json({ error: 'Erreur lors de la récupération du lieu.' });
     }
 };
 const createPlaceController = async (req, res) => {
     try {
-        const {
-            name,
-            department,
-            region,
-            category,
-            description,
-            legend,
-            anecdote,
-            activities,
-            image_url,
-            coordinates,
-            distance_km
-        } = req.body;
+        const placeData = normalizePlaceInput(req.body);
 
         if (
-            !name || !department || !region || !category || !description ||
-            !legend || !anecdote || !activities || !image_url || !coordinates || distance_km == null
+            !placeData.name || !placeData.department || !placeData.region || !placeData.category ||
+            !placeData.description || !placeData.legend || !placeData.anecdote ||
+            !placeData.activities.length || !placeData.image_url || !placeData.coordinates || placeData.distance_km == null
         ) {
-            return res.status(400).json({ error: 'Tous les champs sont requis.' });
+            return res.status(400).json({ error: 'Champs manquants ou invalides (URL HTTPS, coordonnées et catégorie incluses).' });
         }
 
         const newPlace = {
-            name: name.trim(),
-            department: department.trim(),
-            region: region.trim(),
-            category: category.trim(),
-            description: description.trim(),
-            legend: legend.trim(),
-            anecdote: anecdote.trim(),
-            activities: Array.isArray(activities) ? activities.map(a => a.trim()) : [],
-            image_url: image_url.trim(),
-            coordinates,
-            distance_km: parseFloat(distance_km),
+            ...placeData,
             created_at: new Date()
         };
 
@@ -84,40 +64,15 @@ const updatePlaceController = async (req, res) => {
         const { id } = req.params;
         if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
 
-        const {
-            name,
-            department,
-            region,
-            category,
-            description,
-            legend,
-            anecdote,
-            activities,
-            image_url,
-            coordinates,
-            distance_km
-        } = req.body;
+        const updatedData = normalizePlaceInput(req.body);
 
         if (
-            !name || !department || !region || !category || !description ||
-            !legend || !anecdote || !activities || !image_url || !coordinates || distance_km == null
+            !updatedData.name || !updatedData.department || !updatedData.region || !updatedData.category ||
+            !updatedData.description || !updatedData.legend || !updatedData.anecdote ||
+            !updatedData.activities.length || !updatedData.image_url || !updatedData.coordinates || updatedData.distance_km == null
         ) {
-            return res.status(400).json({ error: 'Tous les champs sont requis.' });
+            return res.status(400).json({ error: 'Champs manquants ou invalides (URL HTTPS, coordonnées et catégorie incluses).' });
         }
-
-        const updatedData = {
-            name: name.trim(),
-            department: department.trim(),
-            region: region.trim(),
-            category: category.trim(),
-            description: description.trim(),
-            legend: legend.trim(),
-            anecdote: anecdote.trim(),
-            activities: Array.isArray(activities) ? activities.map(a => a.trim()) : [],
-            image_url: image_url.trim(),
-            coordinates,
-            distance_km: parseFloat(distance_km)
-        };
 
         const updated = await updatePlace(id, updatedData);
         if (!updated) return res.status(404).json({ error: 'Lieu non trouvé ou non modifié.' });

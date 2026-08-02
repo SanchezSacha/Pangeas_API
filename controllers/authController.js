@@ -13,6 +13,25 @@ const {
 } = require('../models/passwordResetModel');
 const { sendPasswordResetEmail } = require('../services/mailService');
 
+const toSessionUser = user => ({
+    id: user.id,
+    email: user.email,
+    pseudo: user.pseudo,
+    avatar_url: user.avatar_url,
+    bio: user.bio,
+    role: user.role
+});
+
+const establishAuthenticatedSession = (req, user, callback) => {
+    const saveSession = () => {
+        req.session.user = toSessionUser(user);
+        req.session.save(callback);
+    };
+
+    if (typeof req.session.regenerate !== 'function') return saveSession();
+    req.session.regenerate(error => error ? callback(error) : saveSession());
+};
+
 //////////////////////////////////////////////////////////INSCRIPTION//////////////////////////////////////////////////////////////
 const registerUser = async (req, res) => {
     try {
@@ -158,15 +177,7 @@ const loginUser = (req, res) => {
                 errors: [{ field: 'password', message: 'Mot de passe incorrect.' }]
             });
         }
-        req.session.user = {
-            id: user.id,
-            email: user.email,
-            pseudo: user.pseudo,
-            avatar_url: user.avatar_url,
-            bio: user.bio,
-            role: user.role
-        };
-        req.session.save(err => {
+        establishAuthenticatedSession(req, user, err => {
             if (err) {
                 console.error('Erreur lors de la sauvegarde de la session', err);
                 return res.status(500).json({ success: false, message: 'Erreur de session.' });
