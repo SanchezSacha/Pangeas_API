@@ -1,4 +1,6 @@
 const db = require('../BDD/mysql');
+const prisma = require('../BDD/prisma');
+const { awardVisitPoints } = require('./pointModel');
 
 // Vérifie s'il y a une visite en cours (n'importe quel lieu)
 const getOngoingVisitByUserId = (userId) => {
@@ -134,40 +136,71 @@ const validateVisitAndUpdateStats = async (visitId, userId, distanceKm, placeTyp
     const typeField = fieldMap[placeType];
     if (!typeField) throw new Error(`Type de lieu inconnu : ${placeType}`);
 
-    const connection = await db.promise().getConnection();
-    try {
-        await connection.beginTransaction();
-        const [validationResult] = await connection.query(`
-            UPDATE user_visits
-            SET status = 'visited',
-                validated_at = NOW(),
-                distance_km = ?,
-                client_event_id = COALESCE(?, client_event_id)
-            WHERE id = ? AND user_id = ? AND status = 'ongoing'
-        `, [distanceKm, clientEventId, visitId, userId]);
+    const prismaFieldMap = {
+        nature: 'natureCount',
+        urbain: 'urbanCount',
+        historique: 'historicalCount',
+        secret: 'secretCount',
+        frisson: 'spookyCount'
+    };
+    const prismaTypeField = prismaFieldMap[placeType];
+    const now = new Date();
 
-        if (validationResult.affectedRows !== 1) {
-            await connection.rollback();
-            return false;
+    const execute = () => prisma.$transaction(async (tx) => {
+        const visit = await tx.userVisit.findFirst({
+            where: { id: visitId, userId, status: 'ongoing' },
+            select: { id: true, placeId: true }
+        });
+        if (!visit) return null;
+
+        const validationResult = await tx.userVisit.updateMany({
+            where: { id: visitId, userId, status: 'ongoing' },
+            data: {
+                status: 'visited',
+                validatedAt: now,
+                distanceKm,
+                placeCategory: placeType,
+                ...(clientEventId ? { clientEventId } : {})
+            }
+        });
+        if (validationResult.count !== 1) return null;
+
+        await tx.userStats.upsert({
+            where: { userId },
+            create: {
+                userId,
+                totalKm: distanceKm,
+                totalPlaces: 1,
+                lastVisitAt: now,
+                [prismaTypeField]: 1
+            },
+            update: {
+                totalKm: { increment: distanceKm },
+                totalPlaces: { increment: 1 },
+                lastVisitAt: now,
+                [prismaTypeField]: { increment: 1 }
+            }
+        });
+
+        const points = await awardVisitPoints(tx, {
+            userId,
+            visitId,
+            placeId: visit.placeId,
+            category: placeType
+        });
+
+        return { validated: true, points };
+    }, { isolationLevel: 'Serializable' });
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+            return await execute();
+        } catch (error) {
+            if (error.code !== 'P2034' || attempt === 3) throw error;
         }
-
-        await connection.query(`
-            INSERT INTO user_stats (user_id, total_km, total_places, ${typeField})
-            VALUES (?, ?, 1, 1)
-            ON DUPLICATE KEY UPDATE
-                total_km = total_km + VALUES(total_km),
-                total_places = total_places + 1,
-                ${typeField} = ${typeField} + 1
-        `, [userId, distanceKm]);
-
-        await connection.commit();
-        return true;
-    } catch (error) {
-        await connection.rollback();
-        throw error;
-    } finally {
-        connection.release();
     }
+
+    return null;
 };
 
 const getTotalVisited = () => {

@@ -27,6 +27,7 @@ coverage/
 # Documentation locale non versionnee
 *.md
 !README.md
+!DOCUMENTATION_POINTS_RECOMPENSES.md
 
 # Fichiers generes ou temporaires
 tmp/

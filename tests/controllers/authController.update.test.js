@@ -71,7 +71,7 @@ describe('updateUser', () => {
 
     it('réussit la mise à jour sans fichier avatar', () => {
         const userBeforeUpdate = { avatar_url: '/img-avatar.jpg' };
-        const updatedUser = { id: 1, pseudo: 'nouveau', avatar_url: '/img-avatar.jpg', bio: 'bio', role: 'user' };
+        const updatedUser = { id: 1, email: 'user@test.fr', pseudo: 'nouveau', avatar_url: '/img-avatar.jpg', bio: 'bio', role: 'user' };
 
         getUserById.mockImplementationOnce((id, cb) => cb(null, userBeforeUpdate));
         updateUserById.mockImplementation((id, data, cb) => cb(null, {}));
@@ -85,6 +85,7 @@ describe('updateUser', () => {
             message: 'Profil mis à jour.',
             user: {
                 id: 1,
+                email: 'user@test.fr',
                 pseudo: 'nouveau',
                 avatar_url: '/img-avatar.jpg',
                 bio: 'bio',
@@ -96,7 +97,7 @@ describe('updateUser', () => {
     it('réussit la mise à jour avec suppression ancien avatar', () => {
         req.file = { filename: 'newAvatar.jpg' };
         const userBeforeUpdate = { avatar_url: '/uploads/avatar/oldAvatar.jpg' };
-        const updatedUser = { id: 1, pseudo: 'nouveau', avatar_url: '/uploads/avatar/newAvatar.jpg', bio: 'bio', role: 'user' };
+        const updatedUser = { id: 1, email: 'user@test.fr', pseudo: 'nouveau', avatar_url: '/uploads/avatar/newAvatar.jpg', bio: 'bio', role: 'user' };
 
         getUserById.mockImplementationOnce((id, cb) => cb(null, userBeforeUpdate));
         updateUserById.mockImplementation((id, data, cb) => cb(null, {}));
@@ -112,6 +113,7 @@ describe('updateUser', () => {
             message: 'Profil mis à jour.',
             user: {
                 id: 1,
+                email: 'user@test.fr',
                 pseudo: 'nouveau',
                 avatar_url: '/uploads/avatar/newAvatar.jpg',
                 bio: 'bio',
