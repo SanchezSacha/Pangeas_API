@@ -3,6 +3,7 @@ const { getPlaceById } = require('../models/placesModel');
 const haversine = require('haversine-distance');
 const { ObjectId } = require('mongodb');
 const { getIdempotencyKey } = require('../utils/idempotency');
+const { getVisitAwardByVisitId } = require('../models/pointModel');
 
 const validateVisit = async (req, res) => {
     const user_id = req.session?.user?.id;
@@ -22,10 +23,12 @@ const validateVisit = async (req, res) => {
         if (idempotencyKey) {
             const previousVisit = await getVisitByClientEventId(user_id, idempotencyKey);
             if (previousVisit?.status === 'visited') {
+                const points = await getVisitAwardByVisitId(user_id, previousVisit.id);
                 return res.status(200).json({
                     success: true,
                     message: 'Visite déjà validée.',
-                    distance_km: previousVisit.distance_km
+                    distance_km: previousVisit.distance_km,
+                    points
                 });
             }
         }
@@ -55,21 +58,22 @@ const validateVisit = async (req, res) => {
             return res.status(404).json({ success: false, message: "Aucune visite en cours trouvée." });
         }
 
-        const wasValidated = await validateVisitAndUpdateStats(
+        const validation = await validateVisitAndUpdateStats(
             ongoingVisit.id,
             user_id,
             distanceKm,
             place.category,
             idempotencyKey
         );
-        if (!wasValidated) {
+        if (!validation) {
             return res.status(409).json({ success: false, message: 'Cette visite a déjà été traitée.' });
         }
 
         return res.status(200).json({
             success: true,
             message: "Visite validée avec succès.",
-            distance_km: distanceKm
+            distance_km: distanceKm,
+            points: validation.points
         });
 
     } catch (err) {

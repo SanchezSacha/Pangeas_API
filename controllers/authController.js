@@ -32,6 +32,15 @@ const establishAuthenticatedSession = (req, user, callback) => {
     req.session.regenerate(error => error ? callback(error) : saveSession());
 };
 
+const removeUploadedFile = file => {
+    if (!file?.path) return;
+    unlink(file.path, error => {
+        if (error && error.code !== 'ENOENT') {
+            console.error('Erreur suppression fichier avatar temporaire :', error);
+        }
+    });
+};
+
 //////////////////////////////////////////////////////////INSCRIPTION//////////////////////////////////////////////////////////////
 const registerUser = async (req, res) => {
     try {
@@ -107,11 +116,13 @@ const updateUser = (req, res) => {
 
     getUserById(userId, (err, userBeforeUpdate) => {
         if (err || !userBeforeUpdate) {
+            removeUploadedFile(req.file);
             return res.status(500).json({ success: false, message: 'Utilisateur introuvable.' });
         }
 
         updateUserById(userId, { pseudo, bio, avatar_url }, (err, result) => {
             if (err) {
+                removeUploadedFile(req.file);
                 console.error('Erreur lors de la mise à jour utilisateur :', err);
                 return res.status(500).json({ success: false, message: 'Erreur serveur.' });
             }
@@ -132,6 +143,7 @@ const updateUser = (req, res) => {
 
                 req.session.user = {
                     id: updatedUser.id,
+                    email: updatedUser.email,
                     pseudo: updatedUser.pseudo,
                     avatar_url: updatedUser.avatar_url,
                     bio: updatedUser.bio,

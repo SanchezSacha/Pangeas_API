@@ -67,25 +67,31 @@ enum RedemptionStatus {
   refunded
 }
 
+enum DonationStatus {
+  pending
+  confirmed
+  cancelled
+}
+
 model User {
-  id               Int       @id @default(autoincrement())
-  pseudo           String    @db.VarChar(50)
-  email            String    @unique @db.VarChar(100)
-  passwordHash     String    @map("password") @db.VarChar(255)
-  bio              String?   @db.Text
-  avatarUrl        String?   @map("avatar_url") @db.VarChar(255)
-  role             UserRole  @default(user)
-  cguAccepted      Boolean   @default(false) @map("cgu_accepted")
-  isActive         Boolean   @default(true) @map("is_active")
+  id               Int        @id @default(autoincrement())
+  pseudo           String     @db.VarChar(50)
+  email            String     @unique @db.VarChar(100)
+  passwordHash     String     @map("password") @db.VarChar(255)
+  bio              String?    @db.Text
+  avatarUrl        String?    @map("avatar_url") @db.VarChar(255)
+  role             UserRole   @default(user)
+  cguAccepted      Boolean    @default(false) @map("cgu_accepted")
+  isActive         Boolean    @default(true) @map("is_active")
   status           UserStatus @default(active)
-  isEmailVerified  Boolean   @default(false) @map("is_email_verified")
-  anonymizedAt     DateTime? @map("anonymized_at")
-  deletedAt        DateTime? @map("deleted_at")
-  lastLoginAt      DateTime? @map("last_login_at")
-  loginStreakCount Int       @default(0) @map("login_streak_count")
-  lastStreakDate   DateTime? @map("last_streak_date") @db.Date
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  isEmailVerified  Boolean    @default(false) @map("is_email_verified")
+  anonymizedAt     DateTime?  @map("anonymized_at")
+  deletedAt        DateTime?  @map("deleted_at")
+  lastLoginAt      DateTime?  @map("last_login_at")
+  loginStreakCount Int        @default(0) @map("login_streak_count")
+  lastStreakDate   DateTime?  @map("last_streak_date") @db.Date
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @default(now()) @updatedAt @map("updated_at")
 
   settings          UserSettings?
   visits            UserVisit[]
@@ -107,18 +113,18 @@ model User {
 }
 
 model UserSettings {
-  userId                 Int      @id @map("user_id")
-  dataExported           Boolean  @default(false) @map("data_exported")
-  legalVersionAcknowledged String? @map("legal_version_acknowledged") @db.VarChar(20)
-  theme                  String   @default("system") @db.VarChar(40)
-  language               String   @default("fr") @db.VarChar(10)
-  marketingEmails        Boolean  @default(false) @map("marketing_emails")
-  privacyLevel           String   @default("standard") @map("privacy_level") @db.VarChar(40)
-  notificationsEnabled   Boolean  @default(true) @map("notifications_enabled")
-  offlineEnabled         Boolean  @default(true) @map("offline_enabled")
-  offlineAutoSyncEnabled Boolean  @default(true) @map("offline_auto_sync_enabled")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
+  userId                   Int      @id @map("user_id")
+  dataExported             Boolean  @default(false) @map("data_exported")
+  legalVersionAcknowledged String?  @map("legal_version_acknowledged") @db.VarChar(20)
+  theme                    String   @default("system") @db.VarChar(40)
+  language                 String   @default("fr") @db.VarChar(10)
+  marketingEmails          Boolean  @default(false) @map("marketing_emails")
+  privacyLevel             String   @default("standard") @map("privacy_level") @db.VarChar(40)
+  notificationsEnabled     Boolean  @default(true) @map("notifications_enabled")
+  offlineEnabled           Boolean  @default(true) @map("offline_enabled")
+  offlineAutoSyncEnabled   Boolean  @default(true) @map("offline_auto_sync_enabled")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -126,22 +132,23 @@ model UserSettings {
 }
 
 model UserVisit {
-  id            Int         @id @default(autoincrement())
-  userId        Int         @map("user_id")
-  placeId       String      @map("place_id") @db.VarChar(24)
+  id            Int            @id @default(autoincrement())
+  userId        Int            @map("user_id")
+  placeId       String         @map("place_id") @db.VarChar(24)
+  placeCategory PlaceCategory? @map("place_category")
   status        VisitStatus
-  source        VisitSource @default(online)
-  startedAt     DateTime?   @map("started_at")
-  validatedAt   DateTime?   @map("validated_at")
-  cancelledAt   DateTime?   @map("cancelled_at")
-  syncedAt      DateTime?   @map("synced_at")
-  clientEventId String?     @unique @map("client_event_id") @db.VarChar(80)
-  distanceKm    Float?      @map("distance_km")
-  gpsAccuracyM  Float?      @map("gps_accuracy_m")
-  validationLat Float?      @map("validation_lat")
-  validationLng Float?      @map("validation_lng")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
+  source        VisitSource    @default(online)
+  startedAt     DateTime?      @map("started_at")
+  validatedAt   DateTime?      @map("validated_at")
+  cancelledAt   DateTime?      @map("cancelled_at")
+  syncedAt      DateTime?      @map("synced_at")
+  clientEventId String?        @unique @map("client_event_id") @db.VarChar(80)
+  distanceKm    Float?         @map("distance_km")
+  gpsAccuracyM  Float?         @map("gps_accuracy_m")
+  validationLat Float?         @map("validation_lat")
+  validationLng Float?         @map("validation_lng")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
 
   user              User               @relation(fields: [userId], references: [id])
   pointTransactions PointTransaction[]
@@ -152,10 +159,10 @@ model UserVisit {
 }
 
 model UserFavorite {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  placeId   String   @map("place_id") @db.VarChar(24)
-  addedAt   DateTime @default(now()) @map("added_at")
+  id      Int      @id @default(autoincrement())
+  userId  Int      @map("user_id")
+  placeId String   @map("place_id") @db.VarChar(24)
+  addedAt DateTime @default(now()) @map("added_at")
 
   user User @relation(fields: [userId], references: [id])
 
@@ -264,6 +271,7 @@ model Partner {
   description String?  @db.Text
   logoUrl     String?  @map("logo_url") @db.VarChar(255)
   websiteUrl  String?  @map("website_url") @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -274,16 +282,24 @@ model Partner {
 }
 
 model Reward {
-  id          Int        @id @default(autoincrement())
-  partnerId   Int?       @map("partner_id")
-  name        String     @db.VarChar(160)
-  description String?    @db.Text
-  type        RewardType
-  pointsCost  Int        @map("points_cost")
-  imageUrl    String?    @map("image_url") @db.VarChar(255)
-  isActive    Boolean    @default(true) @map("is_active")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
+  id              Int        @id @default(autoincrement())
+  partnerId       Int?       @map("partner_id")
+  name            String     @db.VarChar(160)
+  description     String?    @db.Text
+  type            RewardType
+  pointsCost      Int        @map("points_cost")
+  discountPercent Int?       @map("discount_percent")
+  minimumPurchase Decimal?   @map("minimum_purchase") @db.Decimal(10, 2)
+  maxDiscount     Decimal?   @map("max_discount") @db.Decimal(10, 2)
+  scope           String?    @db.VarChar(120)
+  terms           String?    @db.Text
+  startsAt        DateTime?  @map("starts_at")
+  endsAt          DateTime?  @map("ends_at")
+  perUserLimit    Int        @default(1) @map("per_user_limit")
+  imageUrl        String?    @map("image_url") @db.VarChar(255)
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
 
   partner     Partner?           @relation(fields: [partnerId], references: [id])
   couponCodes CouponCode[]
@@ -315,20 +331,22 @@ model CouponCode {
 }
 
 model RewardRedemption {
-  id           Int              @id @default(autoincrement())
-  userId       Int              @map("user_id")
-  rewardId     Int              @map("reward_id")
-  couponCodeId Int?             @map("coupon_code_id")
-  pointsSpent  Int              @map("points_spent")
-  status       RedemptionStatus @default(pending)
-  redeemedAt   DateTime?        @map("redeemed_at")
-  createdAt    DateTime         @default(now()) @map("created_at")
+  id              Int              @id @default(autoincrement())
+  userId          Int              @map("user_id")
+  rewardId        Int              @map("reward_id")
+  couponCodeId    Int?             @map("coupon_code_id")
+  clientRequestId String?          @unique @map("client_request_id") @db.VarChar(80)
+  pointsSpent     Int              @map("points_spent")
+  status          RedemptionStatus @default(pending)
+  redeemedAt      DateTime?        @map("redeemed_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
 
   user       User        @relation(fields: [userId], references: [id])
   reward     Reward      @relation(fields: [rewardId], references: [id])
   couponCode CouponCode? @relation(fields: [couponCodeId], references: [id])
 
   @@index([userId])
+  @@index([rewardId, status])
   @@map("reward_redemptions")
 }
 
@@ -339,6 +357,8 @@ model DonationCampaign {
   description   String?   @db.Text
   goalAmount    Decimal?  @map("goal_amount") @db.Decimal(10, 2)
   currentAmount Decimal   @default(0) @map("current_amount") @db.Decimal(10, 2)
+  budgetAmount  Decimal?  @map("budget_amount") @db.Decimal(10, 2)
+  pointsPerEuro Int       @default(400) @map("points_per_euro")
   startDate     DateTime? @map("start_date")
   endDate       DateTime? @map("end_date")
   imageUrl      String?   @map("image_url") @db.VarChar(255)
@@ -354,37 +374,41 @@ model DonationCampaign {
 }
 
 model Donation {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
-  campaignId  Int      @map("campaign_id")
-  amount      Decimal  @db.Decimal(10, 2)
-  pointsSpent Int      @map("points_spent")
-  message     String?  @db.VarChar(255)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  campaignId      Int            @map("campaign_id")
+  amount          Decimal        @db.Decimal(10, 2)
+  pointsSpent     Int            @map("points_spent")
+  status          DonationStatus @default(pending)
+  clientRequestId String?        @unique @map("client_request_id") @db.VarChar(80)
+  confirmedAt     DateTime?      @map("confirmed_at")
+  message         String?        @db.VarChar(255)
+  createdAt       DateTime       @default(now()) @map("created_at")
 
   user     User             @relation(fields: [userId], references: [id])
   campaign DonationCampaign @relation(fields: [campaignId], references: [id])
 
   @@index([userId])
   @@index([campaignId])
+  @@index([campaignId, status])
   @@map("donations")
 }
 
 model PlaceSubmission {
-  id          Int              @id @default(autoincrement())
-  userId      Int              @map("user_id")
-  title       String           @db.VarChar(120)
-  description String?          @db.Text
-  category    PlaceCategory
-  coordinates Json
-  status      SubmissionStatus @default(pending)
-  adminComment String?         @map("admin_comment") @db.Text
-  mongoPlaceId String?         @map("mongo_place_id") @db.VarChar(24)
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
-  approvedAt  DateTime?        @map("approved_at")
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  title        String           @db.VarChar(120)
+  description  String?          @db.Text
+  category     PlaceCategory
+  coordinates  Json
+  status       SubmissionStatus @default(pending)
+  adminComment String?          @map("admin_comment") @db.Text
+  mongoPlaceId String?          @map("mongo_place_id") @db.VarChar(24)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at")
+  approvedAt   DateTime?        @map("approved_at")
 
-  user        User                      @relation(fields: [userId], references: [id])
+  user        User                        @relation(fields: [userId], references: [id])
   photos      PlaceSubmissionPhoto[]
   moderations PlaceSubmissionModeration[]
 
@@ -394,17 +418,17 @@ model PlaceSubmission {
 }
 
 model PlaceSubmissionPhoto {
-  id           Int         @id @default(autoincrement())
-  submissionId Int         @map("submission_id")
-  url          String      @db.VarChar(255)
-  thumbnailUrl String?     @map("thumbnail_url") @db.VarChar(255)
-  orderIndex   Int         @default(0) @map("order_index")
-  mimeType     String      @map("mime_type") @db.VarChar(80)
-  sizeBytes    Int         @map("size_bytes")
+  id           Int      @id @default(autoincrement())
+  submissionId Int      @map("submission_id")
+  url          String   @db.VarChar(255)
+  thumbnailUrl String?  @map("thumbnail_url") @db.VarChar(255)
+  orderIndex   Int      @default(0) @map("order_index")
+  mimeType     String   @map("mime_type") @db.VarChar(80)
+  sizeBytes    Int      @map("size_bytes")
   width        Int?
   height       Int?
-  status       String      @default("pending") @db.VarChar(30)
-  createdAt    DateTime    @default(now()) @map("created_at")
+  status       String   @default("pending") @db.VarChar(30)
+  createdAt    DateTime @default(now()) @map("created_at")
 
   submission PlaceSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
