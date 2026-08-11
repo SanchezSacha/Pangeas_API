@@ -41,6 +41,7 @@ enum PlaceCategory {
 
 enum SubmissionStatus {
   pending
+  needs_changes
   approved
   rejected
   cancelled
@@ -395,24 +396,27 @@ model Donation {
 }
 
 model PlaceSubmission {
-  id           Int              @id @default(autoincrement())
-  userId       Int              @map("user_id")
-  title        String           @db.VarChar(120)
-  description  String?          @db.Text
-  category     PlaceCategory
-  coordinates  Json
-  status       SubmissionStatus @default(pending)
-  adminComment String?          @map("admin_comment") @db.Text
-  mongoPlaceId String?          @map("mongo_place_id") @db.VarChar(24)
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at")
-  approvedAt   DateTime?        @map("approved_at")
+  id              Int              @id @default(autoincrement())
+  userId          Int              @map("user_id")
+  clientRequestId String?          @unique @map("client_request_id") @db.VarChar(80)
+  title           String           @db.VarChar(120)
+  description     String?          @db.Text
+  category        PlaceCategory
+  coordinates     Json
+  status          SubmissionStatus @default(pending)
+  adminComment    String?          @map("admin_comment") @db.Text
+  mongoPlaceId    String?          @map("mongo_place_id") @db.VarChar(24)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at")
+  reviewedAt      DateTime?        @map("reviewed_at")
+  approvedAt      DateTime?        @map("approved_at")
 
   user        User                        @relation(fields: [userId], references: [id])
   photos      PlaceSubmissionPhoto[]
   moderations PlaceSubmissionModeration[]
 
   @@index([userId, status])
+  @@index([userId, createdAt])
   @@index([status, createdAt])
   @@map("place_submissions")
 }

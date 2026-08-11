@@ -1,5 +1,10 @@
 const prisma = require('../BDD/prisma');
-const { POINT_RULES, buildVisitAward, getNextMilestone } = require('../services/pointRules');
+const {
+    POINT_RULES,
+    buildVisitAward,
+    buildPlaceSubmissionAward,
+    getNextMilestone
+} = require('../services/pointRules');
 
 const CATEGORIES = ['nature', 'urbain', 'historique', 'frisson', 'secret'];
 
@@ -106,9 +111,10 @@ const getVisitAwardByVisitId = async (userId, visitId) => {
 };
 
 const getPointSummary = async (userId) => {
-    const [account, totalVisits, ...categoryCounts] = await Promise.all([
+    const [account, totalVisits, approvedSubmissions, ...categoryCounts] = await Promise.all([
         prisma.pointAccount.findUnique({ where: { userId } }),
         countEligibleVisits(prisma, userId),
+        prisma.pointTransaction.count({ where: { userId, type: 'place_submission' } }),
         ...CATEGORIES.map(category => countEligibleVisits(prisma, userId, category))
     ]);
 
@@ -125,6 +131,10 @@ const getPointSummary = async (userId) => {
         totalPointsEarned: account?.totalPoints || 0,
         eligibleUniqueVisits: totalVisits,
         nextGlobalMilestone: getNextMilestone(totalVisits, POINT_RULES.globalMilestones),
+        placeSubmissions: {
+            approved: approvedSubmissions,
+            nextReward: buildPlaceSubmissionAward(approvedSubmissions)
+        },
         categories
     };
 };
@@ -161,12 +171,17 @@ const awardApprovedPlaceSubmissionPoints = async (tx, userId, submissionId) => {
     });
     if (previous) return { awarded: false, points: 0 };
 
+    const previousApprovedSubmissions = await tx.pointTransaction.count({
+        where: { userId, type: 'place_submission' }
+    });
+    const award = buildPlaceSubmissionAward(previousApprovedSubmissions);
+
     await tx.pointTransaction.create({
         data: {
             userId,
             type: 'place_submission',
-            points: POINT_RULES.approvedPlaceSubmission,
-            reason: 'Lieu propose puis valide par un administrateur',
+            points: award.points,
+            reason: award.reason,
             referenceType: 'place_submission',
             referenceId
         }
@@ -175,16 +190,16 @@ const awardApprovedPlaceSubmissionPoints = async (tx, userId, submissionId) => {
         where: { userId },
         create: {
             userId,
-            totalPoints: POINT_RULES.approvedPlaceSubmission,
-            availablePoints: POINT_RULES.approvedPlaceSubmission
+            totalPoints: award.points,
+            availablePoints: award.points
         },
         update: {
-            totalPoints: { increment: POINT_RULES.approvedPlaceSubmission },
-            availablePoints: { increment: POINT_RULES.approvedPlaceSubmission }
+            totalPoints: { increment: award.points },
+            availablePoints: { increment: award.points }
         }
     });
 
-    return { awarded: true, points: POINT_RULES.approvedPlaceSubmission };
+    return { awarded: true, ...award };
 };
 
 module.exports = {

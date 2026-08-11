@@ -32,6 +32,7 @@ coverage/
 # Fichiers generes ou temporaires
 tmp/
 uploads/
+private_uploads/
 
 # Donnees locales Codex
 .agents/

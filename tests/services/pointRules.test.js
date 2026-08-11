@@ -1,4 +1,9 @@
-const { POINT_RULES, buildVisitAward, getNextMilestone } = require('../../services/pointRules');
+const {
+    POINT_RULES,
+    buildVisitAward,
+    buildPlaceSubmissionAward,
+    getNextMilestone
+} = require('../../services/pointRules');
 
 describe('pointRules', () => {
     it('attribue les bonus de premiere visite et de premiere categorie', () => {
@@ -50,5 +55,18 @@ describe('pointRules', () => {
             progressPercent: 33
         });
         expect(getNextMilestone(100, POINT_RULES.globalMilestones)).toBeNull();
+    });
+
+    it.each([
+        [0, 1, 300],
+        [1, 2, 250],
+        [2, 3, 200],
+        [3, 4, 150],
+        [12, 13, 150]
+    ])('applique le palier des propositions apres %i validation(s)', (previous, number, points) => {
+        expect(buildPlaceSubmissionAward(previous)).toEqual(expect.objectContaining({
+            approvalNumber: number,
+            points
+        }));
     });
 });

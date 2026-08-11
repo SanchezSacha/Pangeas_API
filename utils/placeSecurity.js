@@ -50,6 +50,30 @@ const normalizeCoordinates = coordinates => {
     return { lat, lng };
 };
 
+const normalizeSubmissionInput = body => {
+    let rawCoordinates = body.coordinates;
+    if (typeof rawCoordinates === 'string') {
+        try {
+            rawCoordinates = JSON.parse(rawCoordinates);
+        } catch {
+            rawCoordinates = null;
+        }
+    }
+
+    const coordinates = normalizeCoordinates(rawCoordinates || {
+        lat: body.lat ?? body.latitude,
+        lng: body.lng ?? body.longitude
+    });
+    const category = cleanPlainText(body.category, 50).toLowerCase();
+
+    return {
+        title: cleanPlainText(body.title ?? body.name, 120),
+        description: cleanPlainText(body.description, 500) || null,
+        category: PLACE_CATEGORIES.has(category) ? category : '',
+        coordinates
+    };
+};
+
 const normalizePlaceInput = body => {
     const category = cleanPlainText(body.category, 50).toLowerCase();
     const distanceKm = Number(body.distance_km);
@@ -73,7 +97,7 @@ const normalizePlaceInput = body => {
 
 const sanitizePlaceOutput = place => {
     if (!place) return place;
-    return {
+    const sanitized = {
         ...place,
         name: cleanPlainText(place.name, 150),
         department: cleanPlainText(place.department, 100),
@@ -85,14 +109,21 @@ const sanitizePlaceOutput = place => {
         activities: Array.isArray(place.activities)
             ? place.activities.map(activity => cleanPlainText(activity, 150)).filter(Boolean)
             : [],
-        image_url: normalizeImageUrl(place.image_url)
+        image_url: normalizeImageUrl(place.image_url),
+        images: Array.isArray(place.images)
+            ? place.images.slice(0, 20).map(normalizeImageUrl).filter(Boolean)
+            : undefined
     };
+    delete sanitized.submission_id;
+    delete sanitized.is_published;
+    return sanitized;
 };
 
 module.exports = {
     cleanPlainText,
     cleanRichText,
     normalizeCoordinates,
+    normalizeSubmissionInput,
     normalizeImageUrl,
     normalizePlaceInput,
     sanitizePlaceOutput

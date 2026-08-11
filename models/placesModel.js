@@ -9,7 +9,7 @@ const { getPlacesCollection } = require('../BDD/mongo');
 const getAllPlaces = async () => {
     try {
         const collection = getPlacesCollection();
-        return await collection.find().toArray();
+        return await collection.find({ is_published: { $ne: false } }).toArray();
     } catch (err) {
         console.error("Erreur récupération lieux :", err);
         return [];
@@ -20,7 +20,7 @@ const getPlaceById = async (id) => {
     try {
         const objectId = new ObjectId(id);
         const collection = getPlacesCollection();
-        return await collection.findOne({ _id: objectId });
+        return await collection.findOne({ _id: objectId, is_published: { $ne: false } });
     } catch (err) {
         console.error("Erreur lors de la récupération du lieu:", err);
         return null;

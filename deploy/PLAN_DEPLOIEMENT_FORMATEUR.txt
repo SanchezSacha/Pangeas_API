@@ -1,0 +1,141 @@
+PLAN DE DEPLOIEMENT PANGEAS - SERVEUR UBUNTU
+============================================================
+
+Prerequis cote depot
+------------------------------------------------------------
+Les fichiers deploy/, scripts/deploy-production.sh et les dernieres
+modifications de l'application doivent etre presents sur la branche v2
+des deux depots GitHub avant l'intervention sur le serveur.
+
+Informations a fournir avant de commencer
+------------------------------------------------------------
+- Nom DNS ou nom d'hote attribue par l'ecole : DOMAINE_ECOLE
+- Le HTTPS est-il gere par l'ecole ? oui / non
+- Nouvelle cle SMTP Brevo, transmise separement du present document
+
+Les secrets de session, MySQL et MongoDB sont generes automatiquement
+avec OpenSSL sur le serveur. Ils ne sont jamais ajoutes au depot Git.
+
+
+1. Recuperer le script depuis la branche v2
+------------------------------------------------------------
+
+curl -fsSLo /tmp/pangeas-deploy.sh \
+  https://raw.githubusercontent.com/SanchezSacha/Pangeas_API/v2/scripts/deploy-production.sh
+
+chmod 700 /tmp/pangeas-deploy.sh
+
+
+2. Premier lancement
+------------------------------------------------------------
+
+Remplacer DOMAINE_ECOLE par le nom transmis par l'etablissement, sans
+ajouter https:// ni chemin.
+
+sudo PANGEAS_DOMAIN="DOMAINE_ECOLE" \
+  PANGEAS_ENABLE_CERTBOT=0 \
+  PANGEAS_CONFIGURE_UFW=0 \
+  bash /tmp/pangeas-deploy.sh
+
+Ce premier lancement installe les outils, clone les deux depots et cree :
+
+/etc/pangeas/pangeas.env
+
+Le script s'arrete volontairement apres cette creation.
+
+
+3. Ajouter la cle du service de courrier electronique
+------------------------------------------------------------
+
+sudo nano /etc/pangeas/pangeas.env
+
+Le compte SMTP et l'adresse expediteur sont deja renseignes :
+
+MAIL_USER=b1c213001@smtp-brevo.com
+MAIL_FROM=Pangeas <sanchezsacha2002@gmail.com>
+
+Renseigner uniquement la ligne suivante avec la nouvelle cle transmise
+separement par l'etudiant :
+
+MAIL_PASSWORD=COLLER_ICI_LA_NOUVELLE_CLE_SMTP
+
+Verifier egalement les valeurs suivantes, deja renseignees par le script :
+
+FRONTEND_ORIGINS=https://DOMAINE_ECOLE
+FRONTEND_RESET_PASSWORD_URL=https://DOMAINE_ECOLE/reset-password
+MAIL_FROM=Pangeas <sanchezsacha2002@gmail.com>
+
+Enregistrer puis quitter nano : Ctrl+O, Entree, Ctrl+X.
+
+
+4. Lancer le deploiement complet
+------------------------------------------------------------
+
+Si le HTTPS est gere par l'infrastructure de l'ecole :
+
+sudo PANGEAS_DOMAIN="DOMAINE_ECOLE" \
+  PANGEAS_ENABLE_CERTBOT=0 \
+  PANGEAS_CONFIGURE_UFW=0 \
+  bash /tmp/pangeas-deploy.sh
+
+Si le serveur possede un domaine public pointant directement sur lui :
+
+sudo PANGEAS_DOMAIN="DOMAINE_ECOLE" \
+  PANGEAS_ENABLE_CERTBOT=1 \
+  PANGEAS_CERTBOT_EMAIL="ADRESSE_EMAIL_CERTIFICAT" \
+  PANGEAS_CONFIGURE_UFW=1 \
+  bash /tmp/pangeas-deploy.sh
+
+
+5. Operations realisees automatiquement
+------------------------------------------------------------
+
+- installation de Node.js, Apache, Docker, PM2 et Certbot ;
+- clonage des branches v2 des depots front et back ;
+- demarrage de MySQL 8.4 et MongoDB 7 avec Docker ;
+- installation reproductible avec npm ci ;
+- generation du client Prisma et application des migrations ;
+- execution des tests back-end ;
+- compilation du front Vue avec Vite dans dist ;
+- publication du contenu de dist dans /var/www/pangeas/public ;
+- lancement de l'API sur le port local 3000 avec PM2 ;
+- configuration Apache pour Vue Router, /api et /uploads ;
+- verification de l'API, du front et du processus PM2.
+
+
+6. Verifications manuelles finales
+------------------------------------------------------------
+
+sudo -u pangeas pm2 status
+sudo -u pangeas pm2 logs pangeas-api --lines 50
+sudo apache2ctl configtest
+sudo systemctl status apache2 --no-pager
+sudo docker compose \
+  --env-file /opt/pangeas/api/.env \
+  -f /opt/pangeas/api/deploy/docker-compose.production.yml ps
+
+Tester ensuite depuis un navigateur :
+
+- chargement de la carte ;
+- connexion puis deconnexion ;
+- acces direct a une route utilisateur et a une route admin ;
+- affichage d'un avatar ou d'une image via /uploads ;
+- demande de reinitialisation du mot de passe ;
+- installation de la PWA et chargement apres actualisation.
+
+
+7. Mise a jour ulterieure
+------------------------------------------------------------
+
+Relancer la commande de l'etape 4. Le script recupere les nouvelles
+versions avec git pull --ff-only, reconstruit le front, applique les
+migrations en attente et recharge PM2.
+
+
+Points exclus du script
+------------------------------------------------------------
+
+- restauration ou import des donnees MySQL et MongoDB existantes ;
+- creation du nom de domaine de l'ecole ;
+- transmission des identifiants SMTP confidentiels ;
+- configuration d'un eventuel proxy HTTPS situe avant Apache.

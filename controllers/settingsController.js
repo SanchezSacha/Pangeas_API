@@ -110,7 +110,12 @@ const removePersonalAvatar = (avatarUrl) => {
 const closeSessionAfterAnonymization = (req, res, message) => {
     req.session.destroy(err => {
         if (err) console.error("Erreur destruction session :", err);
-        res.clearCookie('connect.sid', { path: '/' });
+        res.clearCookie(process.env.SESSION_COOKIE_NAME || 'pangeas.sid', {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.SESSION_SAME_SITE || 'lax'
+        });
         return res.status(200).json({ success: true, message });
     });
 };

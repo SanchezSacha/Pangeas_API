@@ -54,10 +54,13 @@ const settingsRoute = require('./routes/settingsRoute');
 const pointRoute = require('./routes/pointRoute');
 const rewardRoute = require('./routes/rewardRoute');
 const donationRoute = require('./routes/donationRoute');
+const placeSubmissionRoute = require('./routes/placeSubmissionRoute');
+const notificationRoute = require('./routes/notificationRoute');
 // Admin
 const adminUserRoutes = require('./routes/admin/userAdminRoutes');
 const adminPlacesRoutes = require('./routes/admin/placeAdminRoutes');
 const adminRewardRoutes = require('./routes/admin/rewardAdminRoutes');
+const adminPlaceSubmissionRoutes = require('./routes/admin/placeSubmissionAdminRoutes');
 
 app.use('/accueil', placesRoutes);
 app.use('/api/places', placesRoutes);
@@ -69,10 +72,13 @@ app.use('/api/settings', settingsRoute);
 app.use('/api/points', pointRoute);
 app.use('/api/rewards', rewardRoute);
 app.use('/api/donations', donationRoute);
+app.use('/api/place-submissions', placeSubmissionRoute);
+app.use('/api/notifications', notificationRoute);
 // Admin
 app.use('/api/admin', adminUserRoutes);
 app.use('/api/admin/places', adminPlacesRoutes);
 app.use('/api/admin', adminRewardRoutes);
+app.use('/api/admin/place-submissions', adminPlaceSubmissionRoutes);
 
 
 

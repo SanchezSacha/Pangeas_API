@@ -1,20 +1,24 @@
-const { getUserById } = require('../../models/userModel');
+const prisma = require('../../BDD/prisma');
 
-function isAdmin(req, res, next) {
+async function isAdmin(req, res, next) {
     const userId = req.session?.user?.id;
     if (!userId) return res.status(401).json({ message: 'Authentification requise.' });
 
-    getUserById(userId, (error, user) => {
-        if (error) return next(error);
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true, isActive: true, status: true }
+        });
 
-        const isActive = user && user.is_active !== 0 && !['disabled', 'anonymized', 'deleted'].includes(user.status);
-        if (!isActive || user.role !== 'admin') {
-            return res.status(403).json({ message: 'Accès refusé. Réservé aux administrateurs.' });
+        if (!user || !user.isActive || user.status !== 'active' || user.role !== 'admin') {
+            return res.status(403).json({ message: 'Acces refuse. Reserve aux administrateurs.' });
         }
 
         req.session.user.role = user.role;
         next();
-    });
+    } catch (error) {
+        next(error);
+    }
 }
 
 module.exports = { isAdmin };

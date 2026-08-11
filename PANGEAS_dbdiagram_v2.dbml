@@ -1,0 +1,458 @@
+// PANGEAS - Schema BDD relationnel + reference MongoDB
+// Format DBML pour dbdiagram.io
+
+Project PANGEAS {
+  database_type: "MySQL"
+  Note: "Schema V2 cible pour Prisma. La table places_mongo represente la collection MongoDB places."
+}
+
+Enum user_role {
+  user
+  admin
+}
+
+Enum user_status {
+  active
+  disabled
+  anonymized
+  deleted
+}
+
+Enum visit_status {
+  ongoing
+  visited
+  cancelled
+}
+
+Enum visit_source {
+  online
+  offline_sync
+}
+
+Enum place_category {
+  nature
+  urbain
+  historique
+  frisson
+  secret
+}
+
+Enum submission_status {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+Enum moderation_action {
+  approve
+  reject
+  comment
+}
+
+Enum reward_type {
+  coupon
+  badge
+  discount
+  donation
+}
+
+Enum coupon_status {
+  available
+  reserved
+  used
+  expired
+}
+
+Enum redemption_status {
+  pending
+  completed
+  cancelled
+  refunded
+}
+
+Enum sync_event_type {
+  visit
+  favorite
+  place_submission
+}
+
+Enum sync_event_action {
+  create
+  update
+  delete
+}
+
+Enum photo_status {
+  pending
+  approved
+  rejected
+}
+
+Table users {
+  id int [pk, increment]
+  email varchar(100) [not null, unique]
+  password_hash varchar(255) [not null]
+  username varchar(50) [not null, unique]
+  first_name varchar(80)
+  last_name varchar(80)
+  avatar_url varchar(255)
+  role user_role [not null, default: "user"]
+  status user_status [not null, default: "active"]
+  is_email_verified boolean [not null, default: false]
+  anonymized_at datetime
+  deleted_at datetime
+  last_login_at datetime
+  login_streak_count int [not null, default: 0]
+  last_streak_date date
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  Indexes {
+    email
+    username
+    status
+  }
+}
+
+Table user_settings {
+  user_id int [pk]
+  theme varchar(40) [not null, default: "system"]
+  language varchar(10) [not null, default: "fr"]
+  marketing_emails boolean [not null, default: false]
+  privacy_level varchar(40) [not null, default: "standard"]
+  notifications_enabled boolean [not null, default: true]
+  offline_enabled boolean [not null, default: true]
+  offline_auto_sync_enabled boolean [not null, default: true]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table visits {
+  id int [pk, increment]
+  user_id int [not null]
+  place_id varchar(24) [not null]
+  status visit_status [not null]
+  source visit_source [not null, default: "online"]
+  started_at datetime
+  visited_at datetime
+  cancelled_at datetime
+  synced_at datetime
+  client_event_id varchar(80) [unique]
+  distance_km float
+  gps_accuracy_m float
+  validation_lat float
+  validation_lng float
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  Indexes {
+    (user_id, status)
+    place_id
+    client_event_id
+  }
+}
+
+Table favorites {
+  id int [pk, increment]
+  user_id int [not null]
+  place_id varchar(24) [not null]
+  created_at datetime [not null]
+
+  Indexes {
+    (user_id, place_id) [unique]
+    place_id
+  }
+}
+
+Table password_reset_tokens {
+  id int [pk, increment]
+  user_id int [not null]
+  token_hash varchar(255) [not null]
+  expires_at datetime [not null]
+  used_at datetime
+  created_at datetime [not null]
+
+  Indexes {
+    user_id
+    token_hash
+  }
+}
+
+Table sync_events {
+  id int [pk, increment]
+  user_id int [not null]
+  type sync_event_type [not null]
+  entity_id varchar(80)
+  action sync_event_action [not null]
+  payload json [not null]
+  is_synced boolean [not null, default: false]
+  created_at datetime [not null]
+  synced_at datetime
+
+  Indexes {
+    (user_id, is_synced)
+    entity_id
+  }
+}
+
+Table point_accounts {
+  id int [pk, increment]
+  user_id int [not null, unique]
+  total_points int [not null, default: 0]
+  available_points int [not null, default: 0]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table point_transactions {
+  id int [pk, increment]
+  user_id int [not null]
+  related_visit_id int
+  type varchar(50) [not null]
+  points int [not null]
+  reason varchar(160) [not null]
+  reference_type varchar(50)
+  reference_id varchar(80)
+  created_at datetime [not null]
+
+  Indexes {
+    (user_id, created_at)
+    related_visit_id
+    (user_id, type, reference_id) [unique]
+  }
+}
+
+Table user_milestones {
+  id int [pk, increment]
+  user_id int [not null]
+  milestone_key varchar(80) [not null]
+  achieved_at datetime [not null]
+
+  Indexes {
+    (user_id, milestone_key) [unique]
+  }
+}
+
+Table partners {
+  id int [pk, increment]
+  name varchar(120) [not null]
+  description text
+  logo_url varchar(255)
+  website_url varchar(255)
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table rewards {
+  id int [pk, increment]
+  partner_id int
+  name varchar(160) [not null]
+  description text
+  type reward_type [not null]
+  points_cost int [not null]
+  image_url varchar(255)
+  is_active boolean [not null, default: true]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  Indexes {
+    partner_id
+    is_active
+  }
+}
+
+Table coupon_codes {
+  id int [pk, increment]
+  reward_id int [not null]
+  code varchar(120) [not null, unique]
+  status coupon_status [not null, default: "available"]
+  assigned_to_user_id int
+  assigned_at datetime
+  expires_at datetime
+  usage_limit int
+  used_count int [not null, default: 0]
+  created_at datetime [not null]
+
+  Indexes {
+    reward_id
+    status
+    assigned_to_user_id
+  }
+}
+
+Table reward_redemptions {
+  id int [pk, increment]
+  user_id int [not null]
+  reward_id int [not null]
+  coupon_code_id int
+  points_spent int [not null]
+  status redemption_status [not null, default: "pending"]
+  redeemed_at datetime
+  created_at datetime [not null]
+
+  Indexes {
+    user_id
+    reward_id
+    coupon_code_id
+  }
+}
+
+Table donation_campaigns {
+  id int [pk, increment]
+  partner_id int
+  name varchar(160) [not null]
+  description text
+  goal_amount decimal(10,2)
+  current_amount decimal(10,2) [not null, default: 0]
+  start_date datetime
+  end_date datetime
+  image_url varchar(255)
+  is_active boolean [not null, default: true]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  Indexes {
+    partner_id
+    is_active
+  }
+}
+
+Table donations {
+  id int [pk, increment]
+  user_id int [not null]
+  campaign_id int [not null]
+  amount decimal(10,2) [not null]
+  points_spent int [not null]
+  message varchar(255)
+  created_at datetime [not null]
+
+  Indexes {
+    user_id
+    campaign_id
+  }
+}
+
+Table place_submissions {
+  id int [pk, increment]
+  user_id int [not null]
+  title varchar(120) [not null]
+  description text
+  category place_category [not null]
+  coordinates json [not null]
+  status submission_status [not null, default: "pending"]
+  admin_comment text
+  mongo_place_id varchar(24)
+  created_at datetime [not null]
+  updated_at datetime [not null]
+  approved_at datetime
+
+  Indexes {
+    (user_id, status)
+    (status, created_at)
+    mongo_place_id
+  }
+}
+
+Table place_submission_photos {
+  id int [pk, increment]
+  submission_id int [not null]
+  url varchar(255) [not null]
+  thumbnail_url varchar(255)
+  order_index int [not null, default: 0]
+  mime_type varchar(80) [not null]
+  size_bytes int [not null]
+  width int
+  height int
+  status photo_status [not null, default: "pending"]
+  created_at datetime [not null]
+
+  Indexes {
+    submission_id
+  }
+}
+
+Table place_submission_moderations {
+  id int [pk, increment]
+  submission_id int [not null]
+  admin_id int [not null]
+  action moderation_action [not null]
+  comment text
+  created_at datetime [not null]
+
+  Indexes {
+    submission_id
+    admin_id
+  }
+}
+
+Table internal_notifications {
+  id int [pk, increment]
+  user_id int [not null]
+  type varchar(80) [not null]
+  title varchar(160) [not null]
+  message text [not null]
+  link varchar(255)
+  read_at datetime
+  created_at datetime [not null]
+
+  Indexes {
+    (user_id, read_at)
+    created_at
+  }
+}
+
+// Collection MongoDB representee pour visualiser les relations SQL -> Mongo.
+Table places_mongo {
+  _id varchar(24) [pk]
+  name varchar(160) [not null]
+  description text
+  category place_category [not null]
+  coordinates json [not null]
+  location json [not null, note: "GeoJSON Point: { type: 'Point', coordinates: [lng, lat] }"]
+  images json
+  updated_at datetime [not null]
+  version int [not null, default: 1]
+  source varchar(40) [not null]
+  status varchar(40) [not null, default: "published"]
+  submitted_by int
+  approved_at datetime
+
+  Note: "Collection MongoDB places, pas une table SQL Prisma."
+}
+
+Ref: user_settings.user_id - users.id [delete: cascade]
+
+Ref: visits.user_id > users.id
+Ref: visits.place_id > places_mongo._id
+
+Ref: favorites.user_id > users.id
+Ref: favorites.place_id > places_mongo._id
+
+Ref: password_reset_tokens.user_id > users.id
+Ref: sync_events.user_id > users.id
+
+Ref: point_accounts.user_id - users.id
+Ref: point_transactions.user_id > users.id
+Ref: point_transactions.related_visit_id > visits.id
+Ref: user_milestones.user_id > users.id
+
+Ref: rewards.partner_id > partners.id
+Ref: coupon_codes.reward_id > rewards.id
+Ref: coupon_codes.assigned_to_user_id > users.id
+Ref: reward_redemptions.user_id > users.id
+Ref: reward_redemptions.reward_id > rewards.id
+Ref: reward_redemptions.coupon_code_id > coupon_codes.id
+
+Ref: donation_campaigns.partner_id > partners.id
+Ref: donations.user_id > users.id
+Ref: donations.campaign_id > donation_campaigns.id
+
+Ref: place_submissions.user_id > users.id
+Ref: place_submissions.mongo_place_id > places_mongo._id
+Ref: place_submission_photos.submission_id > place_submissions.id [delete: cascade]
+Ref: place_submission_moderations.submission_id > place_submissions.id
+Ref: place_submission_moderations.admin_id > users.id
+
+Ref: internal_notifications.user_id > users.id
+Ref: places_mongo.submitted_by > users.id

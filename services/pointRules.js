@@ -2,7 +2,8 @@ const POINT_RULES = Object.freeze({
     visit: 30,
     firstVisit: 70,
     firstCategoryVisit: 30,
-    approvedPlaceSubmission: 150,
+    placeSubmissionRewards: Object.freeze([300, 250, 200]),
+    subsequentPlaceSubmission: 150,
     globalMilestones: Object.freeze([
         { threshold: 10, points: 120 },
         { threshold: 25, points: 250 },
@@ -16,6 +17,16 @@ const POINT_RULES = Object.freeze({
         { threshold: 50, points: 600 }
     ])
 });
+
+const buildPlaceSubmissionAward = previousApprovedSubmissions => {
+    const approvalNumber = previousApprovedSubmissions + 1;
+    const points = POINT_RULES.placeSubmissionRewards[approvalNumber - 1] || POINT_RULES.subsequentPlaceSubmission;
+    return {
+        approvalNumber, points, reason: approvalNumber <= POINT_RULES.placeSubmissionRewards.length
+            ? `Bonus pour la ${approvalNumber}${approvalNumber === 1 ? 're' : 'e'} proposition de lieu publiee`
+            : 'Lieu propose puis publie par un administrateur'
+    };
+};
 
 const buildVisitAward = ({ previousTotalVisits, previousCategoryVisits, category }) => {
     const totalVisits = previousTotalVisits + 1;
@@ -94,4 +105,4 @@ const getNextMilestone = (count, milestones) => {
     };
 };
 
-module.exports = { POINT_RULES, buildVisitAward, getNextMilestone };
+module.exports = { POINT_RULES, buildVisitAward, buildPlaceSubmissionAward, getNextMilestone };

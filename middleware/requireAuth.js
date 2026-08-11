@@ -1,21 +1,32 @@
-const { getUserById } = require('../models/userModel');
+const prisma = require('../BDD/prisma');
 
-module.exports = (req, res, next) => {
-    if (!req.session || !req.session.user) {
+module.exports = async (req, res, next) => {
+    if (!req.session?.user) {
         return res.status(401).json({
             success: false,
             message: 'Authentification requise.'
         });
     }
 
-    getUserById(req.session.user.id, (error, user) => {
-        if (error) return next(error);
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.session.user.id },
+            select: {
+                id: true,
+                email: true,
+                pseudo: true,
+                avatarUrl: true,
+                bio: true,
+                role: true,
+                isActive: true,
+                status: true
+            }
+        });
 
-        const isActive = user && user.is_active !== 0 && !['disabled', 'anonymized', 'deleted'].includes(user.status);
-        if (!isActive) {
+        if (!user || !user.isActive || user.status !== 'active') {
             return req.session.destroy(() => res.status(401).json({
                 success: false,
-                message: 'Session invalide ou compte désactivé.'
+                message: 'Session invalide ou compte desactive.'
             }));
         }
 
@@ -23,10 +34,12 @@ module.exports = (req, res, next) => {
             id: user.id,
             email: user.email,
             pseudo: user.pseudo,
-            avatar_url: user.avatar_url,
+            avatar_url: user.avatarUrl,
             bio: user.bio,
             role: user.role
         };
         next();
-    });
+    } catch (error) {
+        next(error);
+    }
 };
